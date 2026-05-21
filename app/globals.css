@@ -1,0 +1,127 @@
+@import "tailwindcss";
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Design tokens — see DESIGN_PROPOSAL.md §3–5 for rationale.
+   The site is dark-first; light is a derived inverse, not equal-weight.
+   ────────────────────────────────────────────────────────────────────────── */
+
+@theme {
+  /* Color — restricted palette. Amber is sacred; cyan is data-only; pos/neg are P&L only. */
+  --color-bg:           #0a0a0a;
+  --color-bg-elev:      #111111;
+  --color-bg-sunken:    #060606;
+  --color-rule:         #1f1f1f;
+  --color-rule-strong:  #2a2a2a;
+  --color-text:         #e4e4e4;
+  --color-text-dim:     #8a8a8a;
+  --color-text-faint:   #555555;
+  --color-accent:       #ffb000;
+  --color-accent-dim:   #b87d00;
+  --color-data:         #5cc8d7;
+  --color-pos:          #4dd277;
+  --color-neg:          #ff4d4d;
+  --color-warn:         #d9a441;
+
+  /* Type — three faces. JetBrains Mono is the body; Geist for display; Source Serif for prose. */
+  --font-display: var(--font-geist-sans), "Inter Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+  --font-serif: var(--font-source-serif), "Iowan Old Style", Charter, Georgia, serif;
+
+  /* Type scale — fixed sizes, tight rhythm. No clamp(). */
+  --text-2xs: 10px;
+  --text-2xs--line-height: 14px;
+  --text-xs: 11px;
+  --text-xs--line-height: 16px;
+  --text-sm: 12px;
+  --text-sm--line-height: 18px;
+  --text-base: 14px;
+  --text-base--line-height: 22px;
+  --text-md: 16px;
+  --text-md--line-height: 24px;
+  --text-lg: 18px;
+  --text-lg--line-height: 26px;
+  --text-xl: 22px;
+  --text-xl--line-height: 28px;
+  --text-2xl: 28px;
+  --text-2xl--line-height: 32px;
+  --text-3xl: 36px;
+  --text-3xl--line-height: 40px;
+  --text-display: 56px;
+  --text-display--line-height: 60px;
+
+  /* Container max — wide on purpose. */
+  --container-site: 1408px;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Base — sets the dark canvas, mono body, tabular numerals everywhere,
+   amber links, ligatures off (quants read code, not type gymnastics).
+   ────────────────────────────────────────────────────────────────────────── */
+
+@layer base {
+  html {
+    background: var(--color-bg);
+    color: var(--color-text);
+    color-scheme: dark;
+  }
+  body {
+    font-family: var(--font-mono);
+    font-size: var(--text-base);
+    line-height: var(--text-base--line-height);
+    font-feature-settings: "tnum" 1, "cv09" 1, "ss01" 1;
+    font-variant-numeric: tabular-nums slashed-zero;
+    font-variant-ligatures: none;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    min-height: 100vh;
+  }
+  ::selection {
+    background: var(--color-accent);
+    color: var(--color-bg);
+  }
+  a {
+    color: var(--color-accent);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1px;
+  }
+  a:hover { color: var(--color-accent-dim); }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    color: var(--color-text);
+  }
+
+  /* Long-form prose face — opt-in via .prose-serif on a wrapper. */
+  .prose-serif {
+    font-family: var(--font-serif);
+    font-size: 17px;
+    line-height: 28px;
+    max-width: 66ch;
+    color: var(--color-text);
+  }
+  .prose-serif p + p { margin-top: 1.1em; }
+  .prose-serif h2, .prose-serif h3 { font-family: var(--font-display); margin-top: 1.8em; margin-bottom: 0.4em; }
+
+  /* No focus rings using the accent — use a subtle outline instead so amber stays sacred. */
+  :focus-visible {
+    outline: 1px solid var(--color-rule-strong);
+    outline-offset: 2px;
+  }
+}
+
+@utility font-tabular {
+  font-variant-numeric: tabular-nums slashed-zero;
+}
+
+/* Section labels — used above blocks: "─── LATEST NOTES ───" */
+@utility section-label {
+  font-family: var(--font-display);
+  font-size: 10px;
+  line-height: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-dim);
+}
