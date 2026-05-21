@@ -6,7 +6,7 @@ export const site = {
   role: "quantamental research",
   // Longer one-line used on /bio header and meta tags.
   roleLong: "quantitative researcher — factor investing, alternative data, signal construction in global equities",
-  location: "Cambridge, MA", // EDIT ME
+  location: "New York, NY",
   // Optional tagline used on /bio. Keep short.
   tagline: "Where fundamentals meet factors.",
   // Contact + presence. Leave any blank to hide it from the bio links list.
