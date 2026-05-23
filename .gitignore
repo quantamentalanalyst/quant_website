@@ -6,3 +6,6 @@ out
 .DS_Store
 *.tsbuildinfo
 next-env.d.ts
+
+# Claude Code runtime artifacts
+.claude/scheduled_tasks.lock
