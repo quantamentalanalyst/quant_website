@@ -3,7 +3,7 @@
 export const site = {
   name: "Anthony Huang",
   // One-line role for the status bar. Keep tight — fits next to ticker data.
-  role: "quantamental research",
+  role: "Quantamental Research",
   // Longer one-line used on /bio header and meta tags.
   roleLong: "quantitative researcher — factor investing, alternative data, signal construction in global equities",
   location: "New York, NY",
