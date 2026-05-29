@@ -10,7 +10,7 @@ export const site = {
   // Optional tagline used on /bio. Keep short.
   tagline: "Where fundamentals meet factors.",
   // Contact + presence. Leave any blank to hide it from the bio links list.
-  email: "anthonyhuang55555@gmail.com",
+  email: "anthonyhuang@aya.yale.edu",
   handles: {
     github: "", // e.g. "anthonyhuang55555" — used by the research log ticker
     twitter: "", // X handle without the @
@@ -19,6 +19,14 @@ export const site = {
   },
   // Tickers shown in the top status bar. Add/remove freely. Index symbols use ^.
   tickers: ["SPY", "QQQ", "^TNX", "^VIX", "BTC-USD"],
+  // /bio page content. Edit here to update the About Me copy + photo.
+  bio: {
+    photoPath: "/headshot.jpg",
+    prose: [
+      "I currently work as an Assistant Vice President, Quantitative Investment Analyst in the Chief Investment Office at Bank of America. My research interests sit at the intersection of quantitative research and fundamental investing. I enjoy staying curious and keep learning in the field of quantitative investing.",
+      "I graduated from the Yale School of Management in 2023 with a Master's in Asset Management. Prior to that, I earned an Honours Bachelor of Science in Financial Economics from the University of Toronto in 2022.",
+    ],
+  },
   // Homepage centerpiece config.
   homepage: {
     chart: {
