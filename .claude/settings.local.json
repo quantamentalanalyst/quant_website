@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(where pnpm *)",
-      "Bash(pnpm --version)",
-      "PowerShell(\\(Get-Command pnpm -ErrorAction SilentlyContinue\\).Source; pnpm --version; node --version)"
-    ]
-  }
-}
