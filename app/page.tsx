@@ -1,9 +1,8 @@
 import SectionLabel from "@/components/ui/SectionLabel";
 import LatestNotes from "@/components/home/LatestNotes";
-import CenterChart from "@/components/home/CenterChart";
+import IndicesBoard from "@/components/home/IndicesBoard";
 import NowFeed from "@/components/home/NowFeed";
 import { getAllResearch } from "@/lib/content";
-import equity from "@/content/equity.json";
 import { site } from "@/lib/site";
 
 export default async function HomePage() {
@@ -17,10 +16,10 @@ export default async function HomePage() {
       </section>
 
       <section className="col-span-12 md:col-span-6">
-        <SectionLabel>{site.homepage.chart.label}</SectionLabel>
-        <CenterChart data={equity} yLabel={site.homepage.chart.yLabel} />
+        <SectionLabel>{site.homepage.indices.label}</SectionLabel>
+        <IndicesBoard />
         <div className="mt-3 border-t border-rule pt-2 text-[10px] text-text-faint">
-          <span>synthetic illustration — replace <code className="text-text-dim">content/equity.json</code> with live data when ready</span>
+          <span>live · Yahoo Finance · index points, native currency · quotes may be delayed</span>
         </div>
       </section>
 

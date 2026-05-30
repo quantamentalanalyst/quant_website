@@ -27,14 +27,30 @@ export const site = {
       "I graduated from the Yale School of Management in 2023 with a Master's in Asset Management. Prior to that, I earned an Honours Bachelor of Science in Financial Economics from the University of Toronto in 2022.",
     ],
   },
+  // World Equity Indices board (homepage centerpiece). Region-grouped, live via
+  // Yahoo. Add/remove rows freely; symbols are Yahoo tickers. Order within a
+  // region is preserved; regions render in first-seen order.
+  indices: [
+    { region: "Americas", symbol: "^DJI", label: "DOW JONES" },
+    { region: "Americas", symbol: "^GSPC", label: "S&P 500" },
+    { region: "Americas", symbol: "^IXIC", label: "NASDAQ" },
+    { region: "Americas", symbol: "^RUT", label: "RUSSELL 2000" },
+    { region: "Americas", symbol: "^GSPTSE", label: "S&P/TSX" },
+    { region: "EMEA", symbol: "^STOXX50E", label: "EURO STOXX 50" },
+    { region: "EMEA", symbol: "^FTSE", label: "FTSE 100" },
+    { region: "EMEA", symbol: "^GDAXI", label: "DAX" },
+    { region: "APAC", symbol: "^N225", label: "NIKKEI 225" },
+    { region: "APAC", symbol: "^HSI", label: "HANG SENG" },
+  ],
   // Homepage centerpiece config.
   homepage: {
+    indices: {
+      label: "world equity indices · WEI",
+    },
+    // Retained for reuse on backtest pages (phase 4) — not on the homepage.
     chart: {
-      // Label printed above the chart in the section-label style.
       label: "equity curve · qmj-x · 2021–2026",
-      // Path (under /content) for the JSON the chart reads.
       dataPath: "equity.json",
-      // Currency/unit label for the y-axis (printed bottom-right).
       yLabel: "NAV (rebased=100)",
     },
   },
