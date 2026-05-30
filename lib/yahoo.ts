@@ -27,6 +27,55 @@ export function downsample(arr: number[], target = 44): number[] {
   return out;
 }
 
+export type HistoryPoint = { date: string; value: number };
+
+// Yahoo range → sensible bar interval. Short windows daily; 5y weekly to keep
+// the payload light.
+const RANGE_INTERVAL: Record<string, string> = {
+  "1mo": "1d",
+  "6mo": "1d",
+  ytd: "1d",
+  "1y": "1d",
+  "5y": "1wk",
+};
+
+export const HISTORY_RANGES = Object.keys(RANGE_INTERVAL);
+
+// Full historical series for one symbol over a Yahoo range (for the detail
+// chart). Returns ascending [{date, value}] of closes.
+export async function fetchHistory(
+  symbol: string,
+  range = "1y",
+  revalidate = 60,
+): Promise<HistoryPoint[] | null> {
+  const interval = RANGE_INTERVAL[range] ?? "1d";
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
+    symbol,
+  )}?range=${range}&interval=${interval}`;
+  try {
+    const res = await fetch(url, {
+      headers: { "User-Agent": UA, Accept: "application/json" },
+      next: { revalidate },
+    });
+    if (!res.ok) return null;
+    const j: any = await res.json();
+    const r = j?.chart?.result?.[0];
+    if (!r) return null;
+    const ts: number[] = r.timestamp ?? [];
+    const closes: (number | null)[] = r.indicators?.quote?.[0]?.close ?? [];
+    const points: HistoryPoint[] = [];
+    for (let i = 0; i < ts.length; i++) {
+      const v = closes[i];
+      if (typeof v === "number" && Number.isFinite(v)) {
+        points.push({ date: new Date(ts[i]! * 1000).toISOString().slice(0, 10), value: v });
+      }
+    }
+    return points.length >= 2 ? points : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchChartYTD(
   symbol: string,
   revalidate = 60,
