@@ -27,11 +27,11 @@ export default function Nav() {
 
   return (
     <nav className="border-b border-rule">
-      <div className="mx-auto flex h-8 max-w-[1408px] items-stretch gap-px px-6 text-xs">
+      <div className="mx-auto flex h-9 max-w-[1408px] items-stretch gap-px px-6 text-base">
         <Link
           href="/"
           aria-label="home"
-          className="inline-flex h-full flex-1 items-center justify-center bg-accent px-3 font-medium uppercase tracking-[0.08em] text-bg no-underline hover:bg-accent-dim"
+          className="inline-flex h-full flex-1 items-center justify-center whitespace-nowrap bg-accent px-3 text-sm font-medium uppercase tracking-[0.04em] text-bg no-underline hover:bg-accent-dim"
         >
           {badge}
         </Link>
@@ -42,7 +42,7 @@ export default function Nav() {
               key={href}
               href={href}
               style={{ backgroundColor: active ? TAB_BG_ACTIVE : TAB_BG }}
-              className="inline-flex h-full flex-1 items-center justify-center px-3 text-white no-underline transition-colors duration-75"
+              className="inline-flex h-full flex-1 items-center justify-center whitespace-nowrap px-3 text-white no-underline transition-colors duration-75"
               onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = TAB_BG_ACTIVE)}
               onMouseLeave={(e) =>
                 (e.currentTarget.style.backgroundColor = active ? TAB_BG_ACTIVE : TAB_BG)
