@@ -4,7 +4,7 @@ import { JetBrains_Mono, Source_Serif_4 } from "next/font/google";
 import StatusBar from "@/components/site/StatusBar";
 import Nav from "@/components/site/Nav";
 import Footer from "@/components/site/Footer";
-import { site } from "@/lib/site";
+import { site, siteUrl } from "@/lib/site";
 import "./globals.css";
 
 const mono = JetBrains_Mono({
@@ -26,11 +26,12 @@ export const metadata: Metadata = {
     template: `%s · ${site.name}`,
   },
   description: site.roleLong,
-  metadataBase: new URL("https://example.com"), // EDIT when domain is known
+  metadataBase: new URL(siteUrl()),
   openGraph: {
     title: `${site.name} · ${site.role}`,
     description: site.roleLong,
     type: "website",
+    url: siteUrl(),
   },
 };
 

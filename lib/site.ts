@@ -58,3 +58,18 @@ export const site = {
 } as const;
 
 export type Site = typeof site;
+
+// Canonical site origin, resolved at build/runtime:
+//   1. NEXT_PUBLIC_SITE_URL — set this in Vercel once a custom domain is live
+//      (e.g. https://anthonyhuang.com). Highest priority.
+//   2. VERCEL_PROJECT_PRODUCTION_URL — auto-set by Vercel; the *.vercel.app
+//      production URL. Used until a custom domain is configured.
+//   3. localhost — local dev fallback.
+// Drives metadataBase so Open Graph / canonical / social-preview URLs are
+// absolute and correct in every environment without hardcoding a domain.
+export function siteUrl(): string {
+  if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL)
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  return "http://localhost:3022";
+}
