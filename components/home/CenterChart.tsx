@@ -10,6 +10,7 @@ export default function CenterChart({
   showStats = true,
   valueLabel = "NAV",
   height = 360,
+  showDrawdown = true,
 }: {
   data: Point[];
   yLabel?: string;
@@ -18,6 +19,8 @@ export default function CenterChart({
   showStats?: boolean;
   valueLabel?: string;
   height?: number;
+  // When false, the faint red max-drawdown shading is omitted.
+  showDrawdown?: boolean;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(800);
@@ -173,7 +176,7 @@ export default function CenterChart({
           ))}
 
           {/* Drawdown shading */}
-          {dd.start && dd.end && (
+          {showDrawdown && dd.start && dd.end && (
             <rect
               x={x(new Date(dd.start.date))}
               y={0}

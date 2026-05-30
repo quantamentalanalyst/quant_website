@@ -130,7 +130,7 @@ export default function IndexChartModal({
         {/* Chart */}
         <div className="px-5 py-4">
           {points.length >= 2 ? (
-            <CenterChart data={points} showStats={false} height={380} />
+            <CenterChart data={points} showStats={false} showDrawdown={false} height={380} />
           ) : (
             <div className="flex h-[380px] items-center justify-center text-xs text-text-faint">
               {isLoading ? "loading…" : "history unavailable"}
