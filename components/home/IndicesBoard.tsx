@@ -1,8 +1,10 @@
 "use client";
+import { useState } from "react";
 import useSWR from "swr";
 import { site } from "@/lib/site";
 import { Num } from "@/components/ui/Num";
 import { Sparkline } from "@/components/ui/Sparkline";
+import IndexChartModal from "./IndexChartModal";
 
 type IndexRow = {
   symbol: string;
@@ -33,6 +35,7 @@ export default function IndicesBoard() {
   });
 
   const rows = data?.rows;
+  const [selected, setSelected] = useState<IndexRow | null>(null);
 
   // Preserve the config's region order; group rows under each region header.
   const regions: string[] = [];
@@ -63,20 +66,27 @@ export default function IndicesBoard() {
                 {region}
               </div>
               {regionRows.map((r) => (
-                <Row key={r.symbol} r={r} />
+                <Row key={r.symbol} r={r} onOpen={() => setSelected(r)} />
               ))}
             </div>
           );
         })}
+
+      {selected && <IndexChartModal row={selected} onClose={() => setSelected(null)} />}
     </div>
   );
 }
 
-function Row({ r }: { r: IndexRow }) {
+function Row({ r, onOpen }: { r: IndexRow; onOpen: () => void }) {
   const dayPos = r.change >= 0;
   const ytdPos = (r.ytdPct ?? 0) >= 0;
   return (
-    <div className={`${COLS} border-b border-rule py-[5px] font-tabular`}>
+    <button
+      type="button"
+      onClick={onOpen}
+      title={`${r.label} — open chart`}
+      className={`${COLS} w-full cursor-pointer border-b border-rule py-[5px] text-left font-tabular hover:bg-bg-elev/60`}
+    >
       <span className="flex min-w-0 items-center gap-1 truncate text-text">
         {r.label}
         {r.stale && (
@@ -111,7 +121,7 @@ function Row({ r }: { r: IndexRow }) {
       </span>
 
       <span className="text-right text-text-faint">{fmtTime(r.time)}</span>
-    </div>
+    </button>
   );
 }
 

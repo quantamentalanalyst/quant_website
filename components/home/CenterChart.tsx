@@ -7,13 +7,20 @@ type Point = { date: string; value: number };
 export default function CenterChart({
   data,
   yLabel = "",
+  showStats = true,
+  valueLabel = "NAV",
+  height = 360,
 }: {
   data: Point[];
   yLabel?: string;
+  // When false, the absolute stat header (NAV/ret/cagr/mdd) is hidden — used
+  // when a caller (e.g. the index detail modal) renders its own header.
+  showStats?: boolean;
+  valueLabel?: string;
+  height?: number;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(800);
-  const height = 360;
 
   useEffect(() => {
     if (!wrapRef.current) return;
@@ -83,6 +90,17 @@ export default function CenterChart({
   const xTicks = x.ticks(6);
   const yTicks = y.ticks(5);
 
+  // Adaptive x-axis label format: short windows show month/day, medium windows
+  // month + 2-digit year, long windows just the year. Avoids "2026 2026 2026".
+  const spanDays =
+    (parsed.at(-1)!.t.getTime() - parsed[0]!.t.getTime()) / (24 * 3600 * 1000);
+  const xFmt =
+    spanDays <= 95
+      ? d3.timeFormat("%b %d")
+      : spanDays <= 400
+        ? d3.timeFormat("%b ’%y")
+        : d3.timeFormat("%Y");
+
   const [hover, setHover] = useState<{ x: number; y: number; pt: Point } | null>(null);
 
   function onMove(e: React.MouseEvent<SVGRectElement>) {
@@ -104,24 +122,26 @@ export default function CenterChart({
   return (
     <div ref={wrapRef} className="relative w-full" style={{ height }}>
       {/* Summary stats line — Bloomberg-ish header */}
-      <div className="absolute left-0 top-0 z-10 flex items-baseline gap-4 text-xs text-text-dim">
-        <span>
-          NAV <span className="font-tabular text-text">{final.toFixed(2)}</span>
-        </span>
-        <span>
-          ret <span className={totalRet >= 0 ? "font-tabular text-pos" : "font-tabular text-neg"}>
-            {(totalRet * 100).toFixed(1)}%
+      {showStats && (
+        <div className="absolute left-0 top-0 z-10 flex items-baseline gap-4 text-xs text-text-dim">
+          <span>
+            {valueLabel} <span className="font-tabular text-text">{final.toFixed(2)}</span>
           </span>
-        </span>
-        <span>
-          cagr <span className={cagr >= 0 ? "font-tabular text-pos" : "font-tabular text-neg"}>
-            {(cagr * 100).toFixed(2)}%
+          <span>
+            ret <span className={totalRet >= 0 ? "font-tabular text-pos" : "font-tabular text-neg"}>
+              {(totalRet * 100).toFixed(1)}%
+            </span>
           </span>
-        </span>
-        <span>
-          mdd <span className="font-tabular text-neg">{(dd.worst * 100).toFixed(1)}%</span>
-        </span>
-      </div>
+          <span>
+            cagr <span className={cagr >= 0 ? "font-tabular text-pos" : "font-tabular text-neg"}>
+              {(cagr * 100).toFixed(2)}%
+            </span>
+          </span>
+          <span>
+            mdd <span className="font-tabular text-neg">{(dd.worst * 100).toFixed(1)}%</span>
+          </span>
+        </div>
+      )}
 
       <svg width={width} height={height} className="block overflow-visible">
         <g transform={`translate(${margin.left},${margin.top})`}>
@@ -178,7 +198,7 @@ export default function CenterChart({
               fontSize="10"
               fontFamily="var(--font-mono)"
             >
-              {d3.timeFormat("%Y")(t)}
+              {xFmt(t)}
             </text>
           ))}
           {/* y-axis labels on the right */}
