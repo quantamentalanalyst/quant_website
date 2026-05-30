@@ -6,9 +6,11 @@ export const metadata = { title: "bio" };
 //   ┌─────────────────────────────────────┬────────────────┐
 //   │ [▮ ABOUT ME ▮]                      │                │
 //   │                                     │   HEADSHOT     │
-//   │ ⟨serif prose, two paragraphs⟩       │                │
+//   │ ⟨mono terminal prose, 2 paragraphs⟩ │                │
 //   │                                     │                │
 //   └─────────────────────────────────────┴────────────────┘
+// Prose is JetBrains Mono (site body face) to match the terminal aesthetic of
+// the nav badge / WEI board — not the serif used elsewhere for long-form.
 
 export default function Bio() {
   return (
@@ -16,9 +18,9 @@ export default function Bio() {
       <div className="grid grid-cols-12 gap-6">
         <div className="col-span-12 md:col-span-7 lg:col-span-8">
           <SectionBar>about me</SectionBar>
-          <div className="prose-serif mt-5">
+          <div className="mt-5 max-w-[70ch] space-y-4 font-mono text-[13px] leading-[22px] text-text">
             {site.bio.prose.map((p, i) => (
-              <p key={i}>{p}</p>
+              <p key={i}>{renderInline(p)}</p>
             ))}
           </div>
         </div>
@@ -36,6 +38,35 @@ export default function Bio() {
       </div>
     </div>
   );
+}
+
+// Inline markup for bio prose: supports markdown-style [label](url) links,
+// rendered like Bloomberg news-article hyperlinks — cornflower blue
+// (--color-link), no underline, opening external targets in a new tab.
+function renderInline(text: string): React.ReactNode[] {
+  const re = /\[([^\]]+)\]\(([^)]+)\)/g;
+  const out: React.ReactNode[] = [];
+  let last = 0;
+  let key = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) out.push(text.slice(last, m.index));
+    const [full, label, href] = m;
+    const external = /^https?:\/\//.test(href!);
+    out.push(
+      <a
+        key={key++}
+        href={href}
+        {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+        className="text-link no-underline hover:opacity-80"
+      >
+        {label}
+      </a>,
+    );
+    last = m.index + full!.length;
+  }
+  if (last < text.length) out.push(text.slice(last));
+  return out;
 }
 
 // Amber Bloomberg-style "section bar" — solid amber rectangle with dark text,
