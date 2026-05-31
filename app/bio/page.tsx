@@ -1,4 +1,5 @@
 import { site } from "@/lib/site";
+import SectionBar from "@/components/ui/SectionBar";
 
 export const metadata = { title: "bio" };
 
@@ -67,14 +68,4 @@ function renderInline(text: string): React.ReactNode[] {
   }
   if (last < text.length) out.push(text.slice(last));
   return out;
-}
-
-// Amber Bloomberg-style "section bar" — solid amber rectangle with dark text,
-// uppercase + tracked. Used for major section dividers on this page.
-function SectionBar({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="inline-block bg-accent px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.1em] text-bg">
-      {children}
-    </div>
-  );
 }

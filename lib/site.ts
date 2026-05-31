@@ -28,6 +28,35 @@ export const site = {
       "Outside of work, the movie [Moneyball](https://www.youtube.com/watch?v=Tzin1DgexlE) sparked my appreciation for the quantitative side of sports, a passion I bring to life through fantasy basketball. I'll be honest: I'm an NBA nerd, so feel free to talk basketball with me anytime. I'm here for it.",
     ],
   },
+  // /notes (the "News" tab) — dated announcements, newest first. Edit here to
+  // add an item. `date` is YYYY-MM (or YYYY-MM-DD); `venue` is the dim source
+  // line; `note` is an optional amber personal aside.
+  news: [
+    {
+      date: "2026-04",
+      headline: "Invited talk on Asset Allocation Models and Empirical Risk Models",
+      venue: "Future Alpha Conference",
+      note: "",
+    },
+    {
+      date: "2025-06",
+      headline: "Invited talk on Quant Model, Factor Model, and Machine Learning",
+      venue: "Commodity Trading Week Americas",
+      note: "",
+    },
+    {
+      date: "2023-07",
+      headline: "Joined Bank of America",
+      venue: "",
+      note: "",
+    },
+    {
+      date: "2022-04",
+      headline: "Received offer and Dean's Scholarship from Yale SOM",
+      venue: "",
+      note: "Thanks, Yale!",
+    },
+  ],
   // World Equity Indices board (homepage centerpiece). Region-grouped, live via
   // Yahoo. Add/remove rows freely; symbols are Yahoo tickers. Order within a
   // region is preserved; regions render in first-seen order.
