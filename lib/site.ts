@@ -39,7 +39,7 @@ export const site = {
       headline: "Invited talk on Quant Model, Factor Model, and Machine Learning",
       venue: "Commodity Trading Week Americas",
       note: "",
-      href: "",
+      href: "https://americas.commoditytradingweek.com/speakers",
       image: "",
     },
     {
