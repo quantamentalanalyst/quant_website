@@ -33,15 +33,15 @@ export const site = {
   // line; `note` is an optional amber personal aside.
   news: [
     {
-      date: "2026-04",
-      headline: "Invited talk on Asset Allocation Models and Empirical Risk Models",
-      venue: "Future Alpha Conference",
+      date: "2026-06",
+      headline: "Invited talk on Quant Model, Factor Model, and Machine Learning",
+      venue: "Commodity Trading Week Americas",
       note: "",
     },
     {
-      date: "2025-06",
-      headline: "Invited talk on Quant Model, Factor Model, and Machine Learning",
-      venue: "Commodity Trading Week Americas",
+      date: "2026-04",
+      headline: "Invited talk on Asset Allocation Models and Empirical Risk Models",
+      venue: "Future Alpha Conference",
       note: "",
     },
     {
