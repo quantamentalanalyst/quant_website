@@ -56,6 +56,19 @@ export default function Bio() {
                 </a>
               </>
             )}
+            {site.handles.github && (
+              <>
+                <span className="text-text-faint">·</span>
+                <a
+                  href={`https://github.com/${site.handles.github}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-link no-underline hover:opacity-80"
+                >
+                  GitHub
+                </a>
+              </>
+            )}
           </div>
         </div>
       </div>

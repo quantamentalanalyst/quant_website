@@ -12,7 +12,7 @@ export const site = {
   // Contact + presence. Leave any blank to hide it from the bio links list.
   email: "anthonyhuang@aya.yale.edu",
   handles: {
-    github: "", // e.g. "anthonyhuang55555" — used by the research log ticker
+    github: "quantamentalanalyst", // github.com/<this> — also used by the research log ticker
     twitter: "", // X handle without the @
     linkedin: "qitonghuang", // linkedin.com/in/<this>
     ssrn: "", // SSRN author id
