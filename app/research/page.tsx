@@ -16,9 +16,10 @@ export default async function ResearchIndex() {
             <Link href={`/research/${r.slug}`} className="no-underline">
               <div className="flex items-baseline gap-4">
                 <span className="font-tabular w-24 shrink-0 text-text-faint">{r.date}</span>
-                <span className="text-text hover:text-accent">{r.title}</span>
+                {/* Content text matches the Bio section: JetBrains Mono 13/22. */}
+                <span className="font-mono text-[13px] leading-[22px] text-text hover:text-accent">{r.title}</span>
               </div>
-              <p className="ml-28 mt-1 text-[13px] text-text-dim">{r.abstract}</p>
+              <p className="ml-28 mt-1 font-mono text-[13px] leading-[22px] text-text-dim">{r.abstract}</p>
               {r.tags.length > 0 && (
                 <div className="ml-28 mt-1 flex flex-wrap gap-3 text-[10px] text-text-faint">
                   {r.tags.map((t) => (

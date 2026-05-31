@@ -23,12 +23,13 @@ export default function News() {
               {n.date}
             </span>
             <div className="min-w-0">
-              <div className="text-[14px] leading-snug text-text">{n.headline}</div>
+              {/* Content text matches the Bio section: JetBrains Mono 13/22. */}
+              <div className="font-mono text-[13px] leading-[22px] text-text">{n.headline}</div>
               {n.venue && (
-                <div className="mt-1 text-[12px] text-text-dim">{n.venue}</div>
+                <div className="mt-1 font-mono text-[13px] leading-[22px] text-text-dim">{n.venue}</div>
               )}
               {n.note && (
-                <div className="mt-1 text-[12px] text-accent">{n.note}</div>
+                <div className="mt-1 font-mono text-[13px] leading-[22px] text-accent">{n.note}</div>
               )}
             </div>
           </li>
