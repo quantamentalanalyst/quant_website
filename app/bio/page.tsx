@@ -35,6 +35,28 @@ export default function Bio() {
               className="block h-full w-full object-cover"
             />
           </div>
+          {/* Contact — the links live in the words "Email" / "LinkedIn". */}
+          <div className="mt-3 flex items-center gap-3 font-mono text-[13px]">
+            <a
+              href={`mailto:${site.email}`}
+              className="text-link no-underline hover:opacity-80"
+            >
+              Email
+            </a>
+            {site.handles.linkedin && (
+              <>
+                <span className="text-text-faint">·</span>
+                <a
+                  href={`https://www.linkedin.com/in/${site.handles.linkedin}/`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-link no-underline hover:opacity-80"
+                >
+                  LinkedIn
+                </a>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>

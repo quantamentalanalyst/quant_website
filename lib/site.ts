@@ -14,7 +14,7 @@ export const site = {
   handles: {
     github: "", // e.g. "anthonyhuang55555" — used by the research log ticker
     twitter: "", // X handle without the @
-    linkedin: "", // e.g. "anthony-huang"
+    linkedin: "qitonghuang", // linkedin.com/in/<this>
     ssrn: "", // SSRN author id
   },
   // Tickers shown in the top status bar. Add/remove freely. Index symbols use ^.
