@@ -24,7 +24,7 @@ export const site = {
     photoPath: "/headshot.jpg",
     prose: [
       "I currently work as an Assistant Vice President, Quantitative Investment Analyst in the Chief Investment Office at Bank of America. My research interests sit at the intersection of quantitative research and fundamental investing. I enjoy staying curious in the quantamental space.",
-      "I graduated from the Yale School of Management in 2023 with a Master's in Asset Management. Prior to that, I earned an Honours Bachelor of Science in Financial Economics from the University of Toronto in 2022.",
+      "I graduated from the Yale School of Management in 2023 with a Master's in Asset Management. Prior to that, I earned an Honours Bachelor of Science in Financial Economics Specialist, with a minor in Statistics, from the University of Toronto in 2022.",
       "Outside of work, the movie [Moneyball](https://www.youtube.com/watch?v=Tzin1DgexlE) sparked my appreciation for the quantitative side of sports, a passion I bring to life through fantasy basketball. I'll be honest: I'm an NBA nerd, so feel free to talk basketball with me anytime. I'm here for it.",
     ],
   },
