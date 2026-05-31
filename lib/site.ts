@@ -31,7 +31,8 @@ export const site = {
   // /notes (the "News" tab) — dated announcements, newest first. Edit here to
   // add an item. `date` is YYYY-MM (or YYYY-MM-DD); `venue` is the dim source
   // line; `note` is an optional amber personal aside; `href` makes the
-  // headline a clickable blue article link (leave "" for none).
+  // headline a clickable blue article link (leave "" for none); `image` is an
+  // optional path (under /public) shown as a hover preview (leave "" for none).
   news: [
     {
       date: "2026-06",
@@ -39,6 +40,7 @@ export const site = {
       venue: "Commodity Trading Week Americas",
       note: "",
       href: "",
+      image: "",
     },
     {
       date: "2026-04",
@@ -46,6 +48,7 @@ export const site = {
       venue: "Future Alpha Conference",
       note: "",
       href: "https://www.alphaevents.com/events-futurealphaglobal/speakers",
+      image: "/news/future-alpha-panel.jpg",
     },
     {
       date: "2023-07",
@@ -53,6 +56,7 @@ export const site = {
       venue: "",
       note: "",
       href: "",
+      image: "",
     },
     {
       date: "2022-04",
@@ -60,6 +64,7 @@ export const site = {
       venue: "",
       note: "Thanks, Yale!",
       href: "",
+      image: "",
     },
   ],
   // World Equity Indices board (homepage centerpiece). Region-grouped, live via
