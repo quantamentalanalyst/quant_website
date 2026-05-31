@@ -30,31 +30,36 @@ export const site = {
   },
   // /notes (the "News" tab) — dated announcements, newest first. Edit here to
   // add an item. `date` is YYYY-MM (or YYYY-MM-DD); `venue` is the dim source
-  // line; `note` is an optional amber personal aside.
+  // line; `note` is an optional amber personal aside; `href` makes the
+  // headline a clickable blue article link (leave "" for none).
   news: [
     {
       date: "2026-06",
       headline: "Invited talk on Quant Model, Factor Model, and Machine Learning",
       venue: "Commodity Trading Week Americas",
       note: "",
+      href: "",
     },
     {
       date: "2026-04",
       headline: "Invited talk on Asset Allocation Models and Empirical Risk Models",
       venue: "Future Alpha Conference",
       note: "",
+      href: "https://www.alphaevents.com/events-futurealphaglobal/speakers",
     },
     {
       date: "2023-07",
       headline: "Joined Bank of America",
       venue: "",
       note: "",
+      href: "",
     },
     {
       date: "2022-04",
       headline: "Received offer and Dean's Scholarship from Yale SOM",
       venue: "",
       note: "Thanks, Yale!",
+      href: "",
     },
   ],
   // World Equity Indices board (homepage centerpiece). Region-grouped, live via

@@ -23,8 +23,22 @@ export default function News() {
               {n.date}
             </span>
             <div className="min-w-0">
-              {/* Content text matches the Bio section: JetBrains Mono 13/22. */}
-              <div className="font-mono text-[13px] leading-[22px] text-text">{n.headline}</div>
+              {/* Content text matches the Bio section: JetBrains Mono 13/22.
+                  When an item has href, the headline is a blue article link. */}
+              <div className="font-mono text-[13px] leading-[22px]">
+                {n.href ? (
+                  <a
+                    href={n.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-link no-underline hover:opacity-80"
+                  >
+                    {n.headline}
+                  </a>
+                ) : (
+                  <span className="text-text">{n.headline}</span>
+                )}
+              </div>
               {n.venue && (
                 <div className="mt-1 font-mono text-[13px] leading-[22px] text-text-dim">{n.venue}</div>
               )}
