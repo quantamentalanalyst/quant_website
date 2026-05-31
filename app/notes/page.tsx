@@ -1,5 +1,4 @@
 import { site } from "@/lib/site";
-import SectionBar from "@/components/ui/SectionBar";
 
 export const metadata = { title: "news" };
 
@@ -11,9 +10,7 @@ export default function News() {
 
   return (
     <div className="mx-auto max-w-[1080px] pb-12">
-      <SectionBar>news</SectionBar>
-
-      <ul className="mt-4 border-t border-rule">
+      <ul className="border-t border-rule">
         {items.map((n, i) => (
           <li
             key={i}
