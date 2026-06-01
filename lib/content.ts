@@ -80,7 +80,12 @@ export async function getNow(): Promise<NowData> {
   const raw = await fs.readFile(path.join(CONTENT_DIR, "now.mdx"), "utf8");
   const { data, content } = matter(raw);
   return {
-    updated: String(data.updated ?? ""),
+    // YAML parses an unquoted `updated: 2026-05-21` as a Date; normalize to a
+    // plain YYYY-MM-DD so we never render the time/timezone tail.
+    updated:
+      data.updated instanceof Date
+        ? data.updated.toISOString().slice(0, 10)
+        : String(data.updated ?? "").slice(0, 10),
     reading: Array.isArray(data.reading) ? (data.reading as string[]) : [],
     building: Array.isArray(data.building) ? (data.building as string[]) : [],
     thinking: Array.isArray(data.thinking_about) ? (data.thinking_about as string[]) : [],
