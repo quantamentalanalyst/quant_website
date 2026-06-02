@@ -8,6 +8,11 @@ const nextConfig = {
   pageExtensions: ["ts", "tsx", "mdx"],
   reactStrictMode: true,
   typedRoutes: false,
+  // Allow building to a dir outside the project. On Windows + OneDrive, the
+  // default `.next` gets locked/moved by sync mid-build, causing intermittent
+  // ENOENT/PageNotFound errors. Set NEXT_DIST_DIR to a non-synced path to build
+  // cleanly locally. Vercel (Linux) is unaffected and uses the default.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
 };
 
 const withMDX = createMDX({

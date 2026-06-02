@@ -10,6 +10,9 @@ export type ResearchMeta = {
   date: string;
   abstract: string;
   tags: string[];
+  driver?: string; // profit | rates | sentiment | macro
+  status?: "published" | "draft";
+  readingTime?: number; // minutes
   links?: { pdf?: string; code?: string; ssrn?: string; data?: string };
 };
 
@@ -48,9 +51,12 @@ export async function getAllResearch(): Promise<ResearchMeta[]> {
   const entries = await readMdxDir<ResearchMeta>("research", (data, slug) => ({
     slug,
     title: String(data.title ?? slug),
-    date: String(data.date ?? ""),
+    date: typeof data.date === "string" ? data.date : String(data.date ?? "").slice(0, 10),
     abstract: String(data.abstract ?? ""),
     tags: Array.isArray(data.tags) ? (data.tags as string[]) : [],
+    driver: data.driver ? String(data.driver) : undefined,
+    status: data.status === "draft" ? "draft" : "published",
+    readingTime: typeof data.readingTime === "number" ? data.readingTime : undefined,
     links: (data.links as ResearchMeta["links"]) ?? undefined,
   }));
   return entries.sort((a, b) => b.date.localeCompare(a.date));
