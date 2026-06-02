@@ -1,0 +1,40 @@
+{
+  "asOf": "2026-04-15",
+  "nCompanies": 23,
+  "sectors": 7,
+  "topRoe": [
+    {
+      "t": "AAPL",
+      "roe": 151.9,
+      "lev": 4.87,
+      "nm": 26.9,
+      "at": 1.16
+    },
+    {
+      "t": "HD",
+      "roe": 110.5,
+      "lev": 8.2,
+      "nm": 8.6,
+      "at": 1.57
+    },
+    {
+      "t": "LLY",
+      "roe": 77.8,
+      "lev": 4.24,
+      "nm": 31.7,
+      "at": 0.58
+    }
+  ],
+  "trendEnds": {
+    "first": {
+      "year": "2017",
+      "netMargin": 9,
+      "opMargin": 14.4
+    },
+    "last": {
+      "year": "2025",
+      "netMargin": 16.1,
+      "opMargin": 19.5
+    }
+  }
+}

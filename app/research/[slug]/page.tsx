@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAllResearch } from "@/lib/content";
 import EquityDurationArticle from "@/components/research/EquityDurationArticle";
+import ProfitDuPontArticle from "@/components/research/ProfitDuPontArticle";
 
 export async function generateStaticParams() {
   const items = await getAllResearch();
@@ -30,6 +31,8 @@ export default async function ResearchArticle({ params }: { params: Promise<{ sl
 
       {slug === "2026-02-01-equity-duration" ? (
         <EquityDurationArticle meta={meta} />
+      ) : slug === "2026-04-15-profit-dupont" ? (
+        <ProfitDuPontArticle meta={meta} />
       ) : (
         // Draft fallback for entries without a full data-bound article yet.
         <article className="mx-auto max-w-[760px] pb-16">

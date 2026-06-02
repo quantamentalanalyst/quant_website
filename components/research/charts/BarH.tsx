@@ -14,6 +14,7 @@ export default function BarH({
   decimals = 2,
   labelWidth = 96,
   tagWidth = 64,
+  color,
 }: {
   rows: BarRow[];
   height?: number;
@@ -21,6 +22,9 @@ export default function BarH({
   decimals?: number;
   labelWidth?: number;
   tagWidth?: number;
+  // When set, all bars use this single color (for non-P&L metrics like ROE);
+  // otherwise bars are green/red by sign.
+  color?: string;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(640);
@@ -51,14 +55,14 @@ export default function BarH({
           const pos = r.value >= 0;
           const bx = plotL + Math.min(zero, x(r.value));
           const bw = Math.abs(x(r.value) - zero);
-          const color = pos ? "var(--color-pos)" : "var(--color-neg)";
+          const barColor = color ?? (pos ? "var(--color-pos)" : "var(--color-neg)");
           return (
             <g key={r.label}>
               <text x={labelWidth} y={y + rowH / 2 + 3} textAnchor="end" fontSize="11" fontFamily="var(--font-mono)"
                 fill={r.faint ? "var(--color-text-faint)" : "var(--color-text)"}>{r.label}</text>
-              <rect x={bx} y={y} width={bw} height={rowH} fill={color} opacity={r.faint ? 0.35 : 0.85} />
+              <rect x={bx} y={y} width={bw} height={rowH} fill={barColor} opacity={r.faint ? 0.35 : 0.85} />
               <text x={pos ? bx + bw + 4 : bx - 4} y={y + rowH / 2 + 3} textAnchor={pos ? "start" : "end"}
-                fontSize="10" fontFamily="var(--font-mono)" fill={color} className="font-tabular">
+                fontSize="10" fontFamily="var(--font-mono)" fill={barColor} className="font-tabular">
                 {pos ? "+" : "−"}{Math.abs(r.value).toFixed(decimals)}{unit}
               </text>
               {r.tag && (
