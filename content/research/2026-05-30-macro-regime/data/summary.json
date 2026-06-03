@@ -1,6 +1,6 @@
 {
-  "asOf": "2026-04-15",
-  "sample": "1998-01 → 2026-04",
+  "asOf": "2026-05-30",
+  "sample": "1998-01 → 2026-05",
   "current": {
     "ym": "2026-04",
     "key": "G↑ I↑",
@@ -44,10 +44,10 @@
     {
       "label": "Initial claims",
       "unit": "k",
-      "last": 208000,
-      "prior": 239000,
-      "z": -0.27,
-      "asOf": "2026-04"
+      "last": 215000,
+      "prior": 244000,
+      "z": -0.26,
+      "asOf": "2026-05"
     },
     {
       "label": "Payrolls (MoM)",
@@ -76,10 +76,10 @@
     {
       "label": "Mfg pulse (Philly)",
       "unit": "idx",
-      "last": 26.7,
-      "prior": -12.9,
-      "z": 0.92,
-      "asOf": "2026-04"
+      "last": -0.4,
+      "prior": -0.7,
+      "z": -0.61,
+      "asOf": "2026-05"
     },
     {
       "label": "Sahm rule",
@@ -94,24 +94,16 @@
       "unit": "%",
       "last": 3.6,
       "prior": 4.3,
-      "z": 0.71,
-      "asOf": "2026-04"
-    },
-    {
-      "label": "10y−3m curve",
-      "unit": "pp",
-      "last": 0.58,
-      "prior": -0.14,
-      "z": 0.19,
-      "asOf": "2026-04"
+      "z": 0.69,
+      "asOf": "2026-05"
     },
     {
       "label": "Fin. conditions",
       "unit": "idx",
-      "last": -0.47,
-      "prior": -0.39,
-      "z": -0.11,
-      "asOf": "2026-04"
+      "last": -0.51,
+      "prior": -0.47,
+      "z": -0.36,
+      "asOf": "2026-05"
     },
     {
       "label": "Michigan sent.",
@@ -124,10 +116,10 @@
     {
       "label": "VIX",
       "unit": "",
-      "last": 18.2,
-      "prior": 24.7,
-      "z": -0.06,
-      "asOf": "2026-04"
+      "last": 15.3,
+      "prior": 18.6,
+      "z": -0.47,
+      "asOf": "2026-05"
     }
   ],
   "regime": [
@@ -143,7 +135,7 @@
       "name": "Slowdown",
       "avgFwd3": 2.8,
       "hit": 74,
-      "n": 92
+      "n": 93
     },
     {
       "key": "G↑ I↓",
@@ -164,52 +156,47 @@
     {
       "label": "Initial claims",
       "corr": 0.18,
-      "n": 338
+      "n": 339
     },
     {
       "label": "Unemployment rate",
       "corr": 0.15,
-      "n": 337
+      "n": 338
     },
     {
       "label": "VIX",
       "corr": 0.11,
-      "n": 338
+      "n": 339
     },
     {
       "label": "Michigan sentiment",
-      "corr": -0.04,
-      "n": 338
+      "corr": -0.05,
+      "n": 339
     },
     {
       "label": "Retail sales YoY",
       "corr": -0.05,
-      "n": 325
+      "n": 326
     },
     {
       "label": "Payrolls MoM",
       "corr": -0.05,
-      "n": 336
+      "n": 337
     },
     {
       "label": "Industrial prod. YoY",
       "corr": -0.07,
-      "n": 325
+      "n": 326
     },
     {
       "label": "Core CPI YoY",
       "corr": -0.12,
-      "n": 324
+      "n": 325
     },
     {
       "label": "Fin. conditions (NFCI)",
       "corr": -0.13,
-      "n": 338
-    },
-    {
-      "label": "10y−3m curve",
-      "corr": -0.13,
-      "n": 338
+      "n": 339
     }
   ],
   "inflationLast": {
@@ -223,6 +210,6 @@
     "date": "2026-04-01",
     "unrate": 4.3,
     "payroll": 115,
-    "claims": 208
+    "claims": 190
   }
 }

@@ -34,7 +34,7 @@ export default async function ResearchArticle({ params }: { params: Promise<{ sl
         <EquityDurationArticle meta={meta} />
       ) : slug === "2026-04-15-profit-dupont" ? (
         <ProfitDuPontArticle meta={meta} />
-      ) : slug === "2026-04-15-macro-regime" ? (
+      ) : slug === "2026-05-30-macro-regime" ? (
         <MacroRegimeArticle meta={meta} />
       ) : (
         // Draft fallback for entries without a full data-bound article yet.

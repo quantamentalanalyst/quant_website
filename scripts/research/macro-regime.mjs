@@ -10,19 +10,29 @@ import path from "node:path";
 
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36";
 const START = "1998-01-01";
-const END = "2026-04-15";
-const OUT = path.join("content", "research", "2026-04-15-macro-regime", "data");
+const END = "2026-05-30";
+const OUT = path.join("content", "research", "2026-05-30-macro-regime", "data");
 
-async function fredRaw(id) {
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+async function fredRaw(id, tries = 4) {
   const url = `https://fred.stlouisfed.org/graph/fredgraph.csv?id=${id}&cosd=${START}&coed=${END}`;
-  const res = await fetch(url, { headers: { "User-Agent": UA } });
-  if (!res.ok) return null;
-  const out = [];
-  for (const line of (await res.text()).trim().split("\n").slice(1)) {
-    const [d, v] = line.split(",");
-    if (v && v !== ".") out.push({ date: d, val: parseFloat(v) });
+  for (let t = 0; t < tries; t++) {
+    try {
+      const res = await fetch(url, { headers: { "User-Agent": UA } });
+      if (res.ok) {
+        const out = [];
+        for (const line of (await res.text()).trim().split("\n").slice(1)) {
+          const [d, v] = line.split(",");
+          if (v && v !== ".") out.push({ date: d, val: parseFloat(v) });
+        }
+        if (out.length) return out;
+      }
+    } catch {
+      /* retry */
+    }
+    await sleep(800 * (t + 1)); // back off on transient rate limits
   }
-  return out.length ? out : null;
+  return null;
 }
 // Resample to month-end (last observation in each calendar month). Returns Map<YYYY-MM, val>.
 function toMonthly(rows) {
@@ -56,6 +66,15 @@ const want = {
 for (const [k, id] of Object.entries(want)) {
   S[k] = await fredM(id);
   console.log(`${k.padEnd(9)} ${id.padEnd(20)} ${S[k].size ? `n=${S[k].size}` : "UNAVAILABLE"}`);
+  await sleep(700); // pace requests to avoid FRED rate limiting
+}
+// Yahoo fallbacks for the two daily series FRED most often rate-limits.
+// VIX falls back to Yahoo ^VIX (identical index, and the monthly close is more
+// current). The 10y-3m curve is FRED-only — the ^IRX proxy is unreliable, so we
+// prefer dropping the row over publishing a wrong value.
+if (!S.VIX.size) {
+  S.VIX = await yahooMonthly("^VIX");
+  console.log(`VIX      <- Yahoo ^VIX        n=${S.VIX.size}`);
 }
 const SPY = await yahooMonthly("SPY");
 console.log(`SPY (Yahoo monthly) n=${SPY.size}`);
