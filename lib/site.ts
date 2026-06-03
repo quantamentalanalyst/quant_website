@@ -81,11 +81,24 @@ export const site = {
     { region: "EMEA", symbol: "^GDAXI", label: "DAX" },
     { region: "APAC", symbol: "^N225", label: "NIKKEI 225" },
     { region: "APAC", symbol: "^HSI", label: "HANG SENG" },
+    // Fixed income — Treasury curve (yields, %), duration and credit (ETF price).
+    { region: "Fixed Income / Rates", symbol: "^IRX", label: "US 3M" },
+    { region: "Fixed Income / Rates", symbol: "^FVX", label: "US 5Y" },
+    { region: "Fixed Income / Rates", symbol: "^TNX", label: "US 10Y" },
+    { region: "Fixed Income / Rates", symbol: "^TYX", label: "US 30Y" },
+    { region: "Fixed Income / Rates", symbol: "TLT", label: "20Y+ TSY" },
+    { region: "Fixed Income / Rates", symbol: "HYG", label: "HIGH YIELD" },
+    // Volatility / risk sentiment — equity vol, term structure, rate vol, tails, USD.
+    { region: "Volatility / Risk Sentiment", symbol: "^VIX", label: "VIX" },
+    { region: "Volatility / Risk Sentiment", symbol: "^VIX3M", label: "VIX 3M" },
+    { region: "Volatility / Risk Sentiment", symbol: "^MOVE", label: "MOVE · RATE VOL" },
+    { region: "Volatility / Risk Sentiment", symbol: "^SKEW", label: "SKEW · TAILS" },
+    { region: "Volatility / Risk Sentiment", symbol: "DX-Y.NYB", label: "US DOLLAR" },
   ],
   // Homepage centerpiece config.
   homepage: {
     indices: {
-      label: "world equity indices · WEI",
+      label: "cross-asset monitor · XAM",
     },
     // Retained for reuse on backtest pages (phase 4) — not on the homepage.
     chart: {
