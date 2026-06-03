@@ -4,10 +4,10 @@ export default async function NowFeed() {
   const now = await getNow();
   return (
     <div className="space-y-4 text-[13px]">
+      <Block label="building / writing" items={now.building} />
+      <Block label="studying" items={now.studying} />
       <Block label="reading" items={now.reading} />
-      <Block label="building" items={now.building} />
       <Block label="thinking about" items={now.thinking} />
-      {now.listening.length > 0 && <Block label="listening" items={now.listening} />}
       <div className="border-t border-rule pt-3 text-[10px] text-text-faint">
         updated <span className="font-tabular">{now.updated}</span>
       </div>

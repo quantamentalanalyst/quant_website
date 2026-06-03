@@ -7,14 +7,13 @@ export default async function Now() {
   return (
     <div className="max-w-2xl text-[13px]">
       <h1 className="mb-4 text-2xl">Now</h1>
+      <Block label="building / writing" items={n.building} />
+      <Block label="studying" items={n.studying} />
       <Block label="reading" items={n.reading} />
-      <Block label="building" items={n.building} />
       <Block label="thinking about" items={n.thinking} />
-      {n.listening.length > 0 && <Block label="listening" items={n.listening} />}
       <div className="mt-6 border-t border-rule pt-3 text-[10px] text-text-faint">
         updated <span className="font-tabular">{n.updated}</span>
       </div>
-      <p className="mt-6 text-text-faint">phase 5 wires the MDX body below the lists.</p>
     </div>
   );
 }

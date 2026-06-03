@@ -75,10 +75,10 @@ export async function getAllNotes(): Promise<NoteMeta[]> {
 
 export type NowData = {
   updated: string;
-  reading: string[];
   building: string[];
+  studying: string[];
+  reading: string[];
   thinking: string[];
-  listening: string[];
   body: string;
 };
 
@@ -92,10 +92,10 @@ export async function getNow(): Promise<NowData> {
       data.updated instanceof Date
         ? data.updated.toISOString().slice(0, 10)
         : String(data.updated ?? "").slice(0, 10),
-    reading: Array.isArray(data.reading) ? (data.reading as string[]) : [],
     building: Array.isArray(data.building) ? (data.building as string[]) : [],
+    studying: Array.isArray(data.studying) ? (data.studying as string[]) : [],
+    reading: Array.isArray(data.reading) ? (data.reading as string[]) : [],
     thinking: Array.isArray(data.thinking_about) ? (data.thinking_about as string[]) : [],
-    listening: Array.isArray(data.listening) ? (data.listening as string[]) : [],
     body: content,
   };
 }
