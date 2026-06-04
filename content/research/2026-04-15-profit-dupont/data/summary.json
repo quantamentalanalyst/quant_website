@@ -1,40 +1,144 @@
 {
   "asOf": "2026-04-15",
-  "nCompanies": 23,
-  "sectors": 7,
-  "topRoe": [
+  "nFirms": 59,
+  "nPanel": 696,
+  "years": [
+    2010,
+    2024
+  ],
+  "topQuality": [
+    {
+      "t": "NVDA",
+      "q": 9.31,
+      "driver": "margin"
+    },
     {
       "t": "AAPL",
-      "roe": 151.9,
-      "lev": 4.87,
-      "nm": 26.9,
-      "at": 1.16
+      "q": 7.52,
+      "driver": "leverage"
     },
     {
-      "t": "HD",
-      "roe": 110.5,
-      "lev": 8.2,
-      "nm": 8.6,
-      "at": 1.57
+      "t": "MSFT",
+      "q": 4.75,
+      "driver": "margin"
     },
     {
-      "t": "LLY",
-      "roe": 77.8,
-      "lev": 4.24,
-      "nm": 31.7,
-      "at": 0.58
+      "t": "ADBE",
+      "q": 4.54,
+      "driver": "margin"
+    },
+    {
+      "t": "TJX",
+      "q": 3.86,
+      "driver": "turnover"
     }
+  ],
+  "forwardGroups": [
+    {
+      "driver": "margin",
+      "n": 280,
+      "roeRetain": 100,
+      "roeNextChg": 0,
+      "fwdRet": 13.4,
+      "fwdVol": 21.5,
+      "fwdMdd": -12.7,
+      "fwdMarginVol": 5.1
+    },
+    {
+      "driver": "turnover",
+      "n": 209,
+      "roeRetain": 101,
+      "roeNextChg": 0.2,
+      "fwdRet": 16.4,
+      "fwdVol": 20,
+      "fwdMdd": -11.8,
+      "fwdMarginVol": 1.2
+    },
+    {
+      "driver": "leverage",
+      "n": 207,
+      "roeRetain": 104,
+      "roeNextChg": 1.1,
+      "fwdRet": 13.8,
+      "fwdVol": 21,
+      "fwdMdd": -11.8,
+      "fwdMarginVol": 3.5
+    }
+  ],
+  "persistence": {
+    "marginVsLev": {
+      "est": -9,
+      "t": -4.9
+    },
+    "turnoverVsLev": {
+      "est": -6.09,
+      "t": -2.9
+    },
+    "roeLoad": {
+      "est": 0.8,
+      "t": 30.5
+    },
+    "n": 676,
+    "r2": 0.65
+  },
+  "rates": {
+    "equityMult": {
+      "alpha": 0.23,
+      "mkt": -0.02,
+      "tMkt": -0.4,
+      "rate": 1.55,
+      "tRate": 1.5,
+      "n": 166
+    },
+    "trueLev": {
+      "alpha": -0.12,
+      "mkt": 0.03,
+      "tMkt": 0.6,
+      "rate": -0.11,
+      "tRate": -0.1,
+      "n": 166
+    },
+    "corrMultNde": {
+      "r": 0.93,
+      "n": 37
+    },
+    "corrMultNdeq": {
+      "r": 0.24,
+      "n": 54
+    },
+    "netCashTop": 5,
+    "nTop": 15,
+    "note": "rate beta = % HML return per +100bp Δ10y; HAC t (Newey-West, 6 lags). corr = cross-sectional correlation across the universe."
+  },
+  "attribution": {
+    "nFirms": 54,
+    "fromYear": 2015,
+    "median": {
+      "price": 107,
+      "margin": 18,
+      "revenue": 44,
+      "buyback": 8,
+      "multiple": 39
+    }
+  },
+  "negEquity": [
+    "MCD",
+    "LOW",
+    "SBUX",
+    "MO",
+    "PM",
+    "ABBV"
   ],
   "trendEnds": {
     "first": {
-      "year": "2017",
-      "netMargin": 9,
-      "opMargin": 14.4
+      "year": "2015",
+      "netMargin": 9.2,
+      "opMargin": 15.6
     },
     "last": {
       "year": "2025",
-      "netMargin": 16.1,
-      "opMargin": 19.5
+      "netMargin": 15.4,
+      "opMargin": 19.6
     }
   }
 }

@@ -1,15 +1,16 @@
 ---
-title: "Three Roads to ROE: A DuPont Decomposition of Mega-Cap Profitability"
+title: "Three Roads to ROE: What the Source of Profitability Predicts"
 date: "2026-04-15"
-abstract: "Return on equity hides as much as it reveals. Decomposing 23 mega-caps from their latest 10-K filings into the DuPont identity — margin × asset turnover × leverage — shows the market's highest ROEs are leverage-manufactured, not margin-earned: Apple (152% ROE, 4.9× leverage) and Home Depot (110%, 8.2×) lead on buyback-shrunk equity, while NVIDIA's 76% is the only top-tier ROE sourced from margin (56%) with no leverage. Costco and Walmart reach ~25% on 3% margins via turnover alone. Blended net margin across the basket expanded 9.0%→16.1% over 2017–2025 — the secular profit tailwind."
-tags: ["profit", "fundamentals", "cross-section", "sectors", "quality"]
+abstract: "Return on equity is three different engines — margin, turnover, leverage — and the source matters more than the level. Decomposing 59 large-cap non-financials from their 10-K filings on average balances (2010–2025): the highest headline ROEs are largely a denominator effect, not financial leverage and not margin. For 11 names buybacks have shrunk book equity so far that ROE is mechanically meaningless — Home Depot's apparent '22× equity multiplier' is just 1.95× net-debt/EBITDA. The equity multiplier correlates only 0.24 with true net leverage, and a high-multiplier long-short portfolio carries no significant rate beta (t = 1.5) — refuting the claim that buyback-built ROE is rate-sensitive. A reproducible log-decomposition classifier and a formal quality score (NVIDIA tops it; net cash, 94% ROIC) replace hand-labels. The forward tests: turnover-sourced ROE has the most stable margins and the best subsequent returns, while — counterintuitively — leverage-sourced ROE is the most persistent, because a buyback policy is stickier than a margin competition erodes. And within this survivor basket, the decade's stock gains came more from revenue growth and multiple re-rating than from margins."
+tags: ["profit", "fundamentals", "cross-section", "quality", "factors"]
 driver: "profit"
 status: "published"
-readingTime: 11
+readingTime: 18
 links:
   data: ""
   code: ""
 ---
 
-The full article renders from a data-bound component (charts read SEC EDGAR
-10-K/XBRL data computed by `scripts/research/profit-dupont.mjs`).
+The full article renders from a data-bound component (tables and charts read SEC
+EDGAR 10-K/XBRL fundamentals, Yahoo prices, and FRED yields, with all statistics
+computed by `scripts/research/profit-dupont.mjs`).
