@@ -1,0 +1,1 @@
+{"stagMean":-0.77,"stagT":-0.6,"contrasts":[{"name":"Reflation − Stagflation","est":3.78,"t":2.7},{"name":"Slowdown − Stagflation","est":3.59,"t":2.7},{"name":"Goldilocks − Stagflation","est":2.91,"t":1.5}],"joint":{"name":"Non-stagflation − Stagflation","est":3.44,"t":2.5},"hacLag":6,"n":312}
