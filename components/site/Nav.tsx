@@ -11,7 +11,7 @@ import { site } from "@/lib/site";
 const tabs = [
   { label: "Bio", href: "/bio" as const },
   { label: "Research", href: "/research" as const },
-  { label: "News", href: "/notes" as const },
+  { label: "Life Journey", href: "/notes" as const },
   { label: "Interests", href: "/bookshelf" as const },
 ];
 
