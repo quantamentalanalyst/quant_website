@@ -8,7 +8,7 @@ In the analysis folder, you'll find the source code behind every data-driven ana
 
 | folder | contents |
 | --- | --- |
-| `analysis/` | **Source code for each research article.** One self-contained Python script per piece — it pulls the raw data, runs the statistics, and writes the JSON the article renders. Start here if you want to check or reproduce any number on the site. |
+| `analysis/` | **Source code for each research article.** One self-contained Python script per piece — it pulls the raw data, runs the statistics, and writes the JSON the article renders. Start here if you want to check or reproduce any number in the research article. |
 | `app/` | Next.js routes (App Router) |
 | `components/` | UI — terminal-style chrome, charts (D3), article layouts |
 | `content/` | Article front-matter and the generated data each article reads |
