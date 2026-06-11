@@ -100,12 +100,6 @@ export const site = {
     indices: {
       label: "cross-asset monitor · XAM",
     },
-    // Retained for reuse on backtest pages (phase 4) — not on the homepage.
-    chart: {
-      label: "equity curve · qmj-x · 2021–2026",
-      dataPath: "equity.json",
-      yLabel: "NAV (rebased=100)",
-    },
   },
 } as const;
 

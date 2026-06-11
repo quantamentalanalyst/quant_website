@@ -12,7 +12,7 @@ In the analysis folder, you'll find the source code behind every data-driven ana
 | `app/` | Next.js routes (App Router) |
 | `components/` | UI — terminal-style chrome, charts (D3), article layouts |
 | `content/` | Article front-matter and the generated data each article reads |
-| `lib` / `scripts/` | Site utilities and the homepage market-data generator |
+| `lib/` | Site config and utilities |
 
 ## Stack
 
