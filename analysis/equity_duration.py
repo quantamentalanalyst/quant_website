@@ -47,7 +47,7 @@ GV = [  # growth minus value, three definitions
 ]
 
 
-# ---------------------------------------------------------------- data pulls
+# data pulls
 def fred(series_id: str) -> pd.Series:
     """Daily FRED series, fetched in 3y chunks (the graph endpoint times out
     on a 16-year request more often than not)."""
@@ -98,7 +98,7 @@ def yahoo_daily(sym: str) -> pd.Series:
     return pd.Series(dtype=float)
 
 
-# ------------------------------------------------------------------- stats
+# stats
 def nw(y: pd.Series, X: pd.DataFrame, lags: int = HAC_LAGS):
     """OLS with Newey-West errors. Returns the fitted results or None if the
     overlap is too thin to bother."""
@@ -157,7 +157,7 @@ def main():
 
     focus = df.loc[FOCUS:END]
 
-    # ---- sector decomposition (Table 1 of the article) ----------------------
+    # sector decomposition (Table 1 of the article)
     decomp = []
     for s, label in SECTORS:
         f_nom = nw(focus[s], focus[["d_nom"]])
@@ -178,7 +178,7 @@ def main():
     decomp.sort(key=lambda d: d["realCtrl"])
     (OUT / "sector_decomp.json").write_text(json.dumps(decomp))
 
-    # ---- full five-factor model for the exemplars ---------------------------
+    # full five-factor model for the exemplars
     mf = []
     for s in ["XLK", "XLRE", "XLF", "XLE"]:
         f = nw(focus[s], focus[["d_real", "d_be", "mkt", "d_vix", "oil"]])
@@ -195,7 +195,7 @@ def main():
         })
     (OUT / "multifactor.json").write_text(json.dumps(mf))
 
-    # ---- sub-period stability of the market-controlled real-rate beta -------
+    # sub-period stability of the market-controlled real-rate beta
     periods = [("2010-20", "2010-01-01", "2020-12-31"),
                ("2021-22", "2021-01-01", "2022-12-31"),
                ("2023-26", "2023-01-01", END)]
@@ -209,7 +209,7 @@ def main():
     stability.sort(key=lambda x: x["2021-22"] if x["2021-22"] is not None else 0)
     (OUT / "stability.json").write_text(json.dumps(stability))
 
-    # ---- rolling 252d beta, re-estimated every 5 trading days ---------------
+    # rolling 252d beta, re-estimated every 5 trading days
     ROLL = ["XLRE", "XLU", "XLK", "XLF", "XLE"]
     W = 252
     span = df.loc["2011-01-01":END]
@@ -223,7 +223,7 @@ def main():
         roll_rows.append(pt)
     (OUT / "rolling_betas.json").write_text(json.dumps(roll_rows))
 
-    # ---- growth-value at daily frequency, three definitions -----------------
+    # growth-value at daily frequency, three definitions
     gv_out = []
     for _, _, label in GV:
         f_n = nw(focus[label], focus[["d_nom"]])
@@ -264,7 +264,7 @@ def main():
         if f_sc is not None else {"beta": 0, "alpha": 0, "r2": 0, "t": 0, "n": 0}
     (OUT / "gv_scatter.json").write_text(json.dumps({"points": pts, "fit": fit}))
 
-    # ---- hedge backtest on the worst rate-up days ---------------------------
+    # hedge backtest on the worst rate-up days
     up = focus[["d_nom"]].dropna().sort_values("d_nom", ascending=False)
     top = up.head(round(len(up) * 0.10))
 
@@ -285,7 +285,7 @@ def main():
              for name, fn in legs.items()]
     (OUT / "hedge.json").write_text(json.dumps({"hedge": hedge, "nTop": len(top), "nAll": len(up)}))
 
-    # ---- level series for Fig 1 / Fig 2 -------------------------------------
+    # level series for Fig 1 / Fig 2
     lv = pd.DataFrame({"nominal": nom, "real": real}).loc[FOCUS:END].dropna()
     yields = [{"date": d.strftime("%Y-%m-%d"), "nominal": r(row["nominal"]),
                "real": r(row["real"]), "be": r(row["nominal"] - row["real"])}

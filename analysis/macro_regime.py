@@ -63,7 +63,7 @@ KEYS = {"Reflation": "G↑ I↑", "Goldilocks": "G↑ I↓",
         "Stagflation": "G↓ I↑", "Slowdown": "G↓ I↓"}
 
 
-# ---------------------------------------------------------------- data pulls
+# data pulls
 def fred_monthly(sid: str) -> np.ndarray:
     """FRED series resampled to month-end last observation, aligned to MONTHS."""
     url = (f"https://fred.stlouisfed.org/graph/fredgraph.csv"
@@ -111,7 +111,7 @@ def yahoo_monthly(sym: str) -> np.ndarray:
     return np.full(N, np.nan)
 
 
-# ------------------------------------------------------------- transforms
+# transforms
 def yoy(arr):
     out = np.full(N, np.nan)
     out[12:] = (arr[12:] / arr[:-12] - 1) * 100
@@ -254,7 +254,7 @@ def main():
                       "hit": (xs > 0).mean() * 100 if len(xs) else None, "n": len(xs)}
         return out
 
-    # ---- headline classification (expanding window, the tradeable one) ------
+    # headline classification (expanding window, the tradeable one)
     labels, rets, ms, current = classify()
     head_cells = cells(labels, rets)
 
@@ -283,7 +283,7 @@ def main():
     regime.sort(key=lambda x: -(x["mean"] or -99))
     (OUT / "regime.json").write_text(json.dumps(regime, ensure_ascii=False))
 
-    # ---- HAC dummy regression, stagflation omitted ---------------------------
+    # HAC dummy regression, stagflation omitted
     X = pd.DataFrame({
         "refl": [1 if l == "Reflation" else 0 for l in labels],
         "slow": [1 if l == "Slowdown" else 0 for l in labels],
@@ -306,7 +306,7 @@ def main():
     }
     (OUT / "regime_reg.json").write_text(json.dumps(reg_reg, ensure_ascii=False))
 
-    # ---- robustness grid ------------------------------------------------------
+    # robustness grid
     def variant(label, **kw):
         lab, rt, _, _ = classify(**kw)
         c = cells(lab, rt)
@@ -340,7 +340,7 @@ def main():
     ]
     (OUT / "robustness.json").write_text(json.dumps(robustness, ensure_ascii=False))
 
-    # ---- unconditional lead-lag, overlap-corrected ----------------------------
+    # unconditional lead-lag, overlap-corrected
     in_sample = np.array([p >= SAMPLE0 for p in MONTHS])
 
     def corr_fwd(x):
@@ -391,7 +391,7 @@ def main():
                 for k, v in [("claims", S["ICSA"]), ("vix", S["VIX"]), ("unrate", S["UNRATE"])]}
     (OUT / "reaction.json").write_text(json.dumps(reaction))
 
-    # ---- hard/soft divergence factor ------------------------------------------
+    # hard/soft divergence factor
     z_un = z_series(S["UNRATE"], "exp")
     z_cl = z_series(S["ICSA"], "exp")
     z_mi = z_series(S["UMCSENT"], "exp")
@@ -415,7 +415,7 @@ def main():
                 "asOf": str(MONTHS[last_i])}
     (OUT / "hardsoft.json").write_text(json.dumps(hardsoft))
 
-    # ---- regime-conditioned factor spreads -------------------------------------
+    # regime-conditioned factor spreads
     label_at = dict(zip(ms, labels))
 
     def fwd3_rel(long_px, short_px):
@@ -459,7 +459,7 @@ def main():
     (OUT / "factors.json").write_text(json.dumps(
         {"spreads": spreads, "sectorTilt": tilt, "n": spreads[0]["n"]}, ensure_ascii=False))
 
-    # ---- allocation backtest (regime label sets next-month weights) ------------
+    # allocation backtest (regime label sets next-month weights)
     WEIGHTS = {"Reflation": {"SPY": 1.0}, "Goldilocks": {"SPY": 1.0},
                "Slowdown": {"SPY": 0.75, "IEF": 0.25},
                "Stagflation": {"SPY": 0.40, "IEF": 0.20, "GLD": 0.20, "CASH": 0.20}}
@@ -525,7 +525,7 @@ def main():
              "curve": curve, "weights": WEIGHTS, "rfAnn": r(rf_m * 12 * 100, 1)}
     (OUT / "alloc.json").write_text(json.dumps(alloc, ensure_ascii=False))
 
-    # ---- current-regime confidence ----------------------------------------------
+    # current-regime confidence
     gc = growth_composite()
     ci = IDX[pd.Period(current["ym"], "M")]
     g_chg = gc[ci] - gc[ci - 3]
@@ -555,7 +555,7 @@ def main():
     }
     (OUT / "confidence.json").write_text(json.dumps(confidence))
 
-    # ---- dashboard ----------------------------------------------------------------
+    # dashboard
     def dash(label, arr, kind, unit, dec, interp):
         series = yoy(arr) if kind == "yoy" else mom(arr) if kind == "mom" else arr
         fin = [i for i in range(N) if np.isfinite(series[i])]

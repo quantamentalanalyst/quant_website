@@ -119,7 +119,7 @@ FLOWS = {"rev", "ni", "gp", "oi", "da", "pretax", "tax", "ocf", "capex", "shares
 GROUPS = ["margin", "turnover", "leverage"]
 
 
-# ---------------------------------------------------------------- data pulls
+# data pulls
 def get_json(url, headers, tries=4):
     for attempt in range(tries):
         try:
@@ -221,7 +221,7 @@ def shares_outstanding(facts):
     return sorted(tenk, key=lambda e: e["end"], reverse=True)[0]["val"]
 
 
-# ------------------------------------------------------------------- helpers
+# helpers
 def r(x, n=2):
     if x is None:
         return None
@@ -283,7 +283,7 @@ def main():
     spy = yahoo_monthly("SPY")
     print(f"DGS10 n={len(dgs10)}  SPY n={len(spy)}")
 
-    # ---- build the firm panel -------------------------------------------------
+    # build the firm panel
     firms = []
     for ticker, name, sector in UNIVERSE:
         facts = get_json(f"https://data.sec.gov/api/xbrl/companyfacts/CIK{cik[ticker]}.json",
@@ -372,7 +372,7 @@ def main():
         time.sleep(0.25)
     print(f"\nloaded {len(firms)} firms")
 
-    # ---- snapshot on trailing-3y ratios ----------------------------------------
+    # snapshot on trailing-3y ratios
     def trailing3(fm):
         last3 = fm["fy"][-3:]
         avg = lambda k: nanmean([x[k] for x in last3])
@@ -448,7 +448,7 @@ def main():
     } for s in snap], key=lambda x: -(x["roe"] if x["roe"] is not None else -999))
     (OUT / "companies.json").write_text(json.dumps(snap_out))
 
-    # ---- valuation overlay -------------------------------------------------------
+    # valuation overlay
     valuation = []
     for fm in firms:
         latest, t3 = fm["fy"][-1], trailing3(fm)
@@ -471,7 +471,7 @@ def main():
         })
     (OUT / "valuation.json").write_text(json.dumps(valuation))
 
-    # ---- forward tests by driver group -------------------------------------------
+    # forward tests by driver group
     panel = []
     for year in PANEL_YEARS:
         cross = []
@@ -548,7 +548,7 @@ def main():
         {"groups": fwd_groups, "persistence": persistence,
          "nPanel": len(panel), "years": [min(PANEL_YEARS), max(PANEL_YEARS)]}))
 
-    # ---- rate test: multiplier HML vs true-leverage HML ----------------------------
+    # rate test: multiplier HML vs true-leverage HML
     all_m = sorted(p for p in spy if pd.Period("2010-07", "M") <= p <= pd.Period("2026-05", "M"))
     mkt_ret = {p: (spy[p] / spy[q] - 1) * 100 for q, p in zip(all_m, all_m[1:])
                if q in spy and p in spy}
@@ -621,7 +621,7 @@ def main():
     }
     (OUT / "rates.json").write_text(json.dumps(rates))
 
-    # ---- return attribution since 2015 ----------------------------------------------
+    # return attribution since 2015
     # dlog(P) = dlog(margin) + dlog(rev) - dlog(shares) + dlog(P/E)
     attrib = []
     for fm in firms:
@@ -653,7 +653,7 @@ def main():
                               "multiple": med("dPE")}}
     (OUT / "attribution.json").write_text(json.dumps(attribution))
 
-    # ---- sector aggregates + basket margin trend --------------------------------------
+    # sector aggregates + basket margin trend
     sec_agg = {}
     for s in snap_out:
         a = sec_agg.setdefault(s["sector"], {"ni": 0.0, "rev": 0.0, "roes": [], "n": 0})
