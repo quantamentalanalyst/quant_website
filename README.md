@@ -14,21 +14,4 @@ In the analysis folder, you'll find the source code behind every data-driven ana
 | `content/` | Article front-matter and the generated data each article reads |
 | `lib/` | Site config and utilities |
 
-## Stack
 
-Next.js 15 · React 19 · Tailwind v4 · D3 · KaTeX · MDX. Python
-(pandas / numpy / statsmodels) for the research pipelines.
-
-## Running locally
-
-```
-pnpm install
-pnpm dev
-```
-
-To regenerate the research data, see `analysis/README.md` — each script runs
-standalone against public sources, no API keys required.
-
----
-
-This is research, not investment advice.
