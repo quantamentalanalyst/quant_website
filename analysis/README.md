@@ -2,8 +2,8 @@
 
 Research code behind the articles on the site. Each script is self-contained:
 it pulls public data, runs the statistics, and writes the JSON that the
-corresponding article page renders. The site never computes anything at
-runtime — what you read on a page is exactly what these scripts produced.
+corresponding article page renders. The articles in this site never computes anything at
+runtime.
 
 | script | article | data |
 | --- | --- | --- |
