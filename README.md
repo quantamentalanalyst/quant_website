@@ -1,27 +1,8 @@
-# Quantamental Research
+This is the source code for Anthony Huang's quantamental research website, quantamentalanthology.com. I'd love to keep building out my own "research hub" and maintaining my journal as a way to keep learning and stay curious about the markets.
 
-Personal website of Anthony Huang — equity research with a quantitative bent,
-styled after the terminal I stare at all day.
+In the analysis folder, you'll find the source code behind every data-driven analysis I wrote for each of the quantamental pieces.
 
-**Live topics:** macro regimes, rate sensitivity in the equity cross-section,
-and profitability decomposition. Every article is data-driven end to end: the
-numbers, tables, and charts on each page come from reproducible analysis of
-public data (FRED, SEC EDGAR, Yahoo Finance), not from screenshots or
-hand-copied figures.
 
-## What's here
-
-- **Home** — a cross-asset monitor (equities, rates, vol) with live quotes,
-  plus latest research notes and a "now" feed.
-- **Research** — the long-form pieces. Each one is a full study with stated
-  methodology, statistical tests, robustness checks, and honest caveats:
-  - *Macro Regimes, Not Macro Prints* — a growth × inflation regime framework
-    for equity allocation, built on real-time standardization.
-  - *Equity Duration Is Not Where Investors Think* — a cross-sectional
-    decomposition of rate beta, 2021–2026.
-  - *Three Roads to ROE* — a DuPont panel study of what the source of
-    profitability actually predicts.
-- **Bio / Life Journey / Interests** — the person behind the research.
 
 ## Repo layout
 
