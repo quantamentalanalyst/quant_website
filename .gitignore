@@ -7,6 +7,6 @@ out
 *.tsbuildinfo
 next-env.d.ts
 
-# Claude Code runtime artifacts
-.claude/scheduled_tasks.lock
-.claude/settings.local.json
+# local tooling / caches
+.claude/
+__pycache__/
