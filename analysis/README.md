@@ -1,4 +1,4 @@
-# analysis
+# Analysis
 
 Research code behind the articles on the site. Each script is self-contained:
 it pulls public data, runs the statistics, and writes the JSON that the
