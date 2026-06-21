@@ -9,7 +9,7 @@ import { site } from "@/lib/site";
 // matching Bloomberg's function-button bank. Routes under the hood unchanged.
 // (⌘K hint will return in phase 6 with the command palette.)
 const tabs = [
-  { label: "Bio", href: "/bio" as const },
+  { label: "Market", href: "/bio" as const },
   { label: "Research", href: "/research" as const },
   { label: "Life Journey", href: "/notes" as const },
   { label: "Interests", href: "/bookshelf" as const },
