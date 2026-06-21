@@ -39,7 +39,9 @@ export default function IndexChartModal({
   const { data, isLoading } = useSWR<HistResp>(
     `/api/history?symbol=${encodeURIComponent(row.symbol)}&range=${range}`,
     fetcher,
-    { revalidateOnFocus: false, keepPreviousData: true },
+    // Poll every 60s like the board so `last` and the range change stay live
+    // while the modal is open. keepPreviousData avoids a flash on refetch.
+    { refreshInterval: 60_000, revalidateOnFocus: false, keepPreviousData: true },
   );
 
   // Close on Escape; lock body scroll while open.
