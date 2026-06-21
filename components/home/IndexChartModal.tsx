@@ -54,9 +54,23 @@ export default function IndexChartModal({
     };
   }, [onClose]);
 
-  const dayPos = row.change >= 0;
-  const ytdPos = (row.ytdPct ?? 0) >= 0;
   const points = data?.points ?? [];
+
+  // Change over the *selected* range, computed from the chart's own series so
+  // the header figure tracks the timeframe the user clicked (1M/6M/YTD/1Y/5Y)
+  // instead of always showing the day's move. Series is chronological, so the
+  // first point is the window's open and the last is the latest close.
+  const first = points[0]?.value;
+  const latest = points.at(-1)?.value;
+  const hasPeriod =
+    points.length >= 2 &&
+    typeof first === "number" &&
+    first !== 0 &&
+    typeof latest === "number";
+  const periodChange = hasPeriod ? latest! - first! : null;
+  const periodPct = hasPeriod ? (latest! / first! - 1) * 100 : null;
+  const periodPos = (periodPct ?? 0) >= 0;
+  const activeLabel = RANGES.find((r) => r.key === range)?.label ?? "";
 
   return (
     <div
@@ -80,18 +94,15 @@ export default function IndexChartModal({
             <span>
               last <Num value={row.last} decimals={2} className="text-text" />
             </span>
-            <span className={dayPos ? "text-pos" : "text-neg"}>
-              <Num value={row.change} decimals={2} signed />{" "}
-              (<Num value={row.changePct} decimals={2} signed pct />)
-            </span>
-            <span>
-              ytd{" "}
-              {row.ytdPct === null ? (
-                <span className="text-text-faint">—</span>
-              ) : (
-                <span className={ytdPos ? "text-pos" : "text-neg"}>
-                  <Num value={row.ytdPct} decimals={1} signed pct />
+            <span className="inline-flex items-baseline gap-1">
+              <span className="text-[10px] uppercase text-text-faint">{activeLabel}</span>
+              {hasPeriod ? (
+                <span className={periodPos ? "text-pos" : "text-neg"}>
+                  <Num value={periodChange} decimals={2} signed />{" "}
+                  (<Num value={periodPct} decimals={2} signed pct />)
                 </span>
+              ) : (
+                <span className="text-text-faint">—</span>
               )}
             </span>
           </div>
