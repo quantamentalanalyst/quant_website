@@ -3,7 +3,7 @@ import { getNow } from "@/lib/content";
 export default async function NowFeed() {
   const now = await getNow();
   return (
-    <div className="space-y-4 text-[13px]">
+    <div className="space-y-4 font-mono text-[13px] leading-[22px] text-text">
       <Block label="building / writing" items={now.building} />
       <Block label="studying" items={now.studying} />
       <Block label="reading" items={now.reading} />
@@ -20,9 +20,9 @@ function Block({ label, items }: { label: string; items: string[] }) {
   return (
     <div>
       <div className="section-label mb-1.5 text-text-faint">{label}</div>
-      <ul className="space-y-1 text-text-dim">
+      <ul className="space-y-1 text-text">
         {items.map((item, i) => (
-          <li key={i} className="flex gap-2 leading-snug">
+          <li key={i} className="flex gap-2 leading-[22px]">
             <span className="shrink-0 text-text-faint">·</span>
             <span>{item}</span>
           </li>
