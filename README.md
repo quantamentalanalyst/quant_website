@@ -1,4 +1,4 @@
-This is the source code for Anthony Huang's research website, anthonyhuangresearch.com. I'd love to keep building out my own "research hub" and maintaining my journal as a way to keep learning and stay curious about the markets.
+This is the source code for my research website, anthonyhuangresearch.com. I'd love to keep building out my own "research hub" and maintaining my journal as a way to keep learning and stay curious about the markets.
 
 In the analysis folder, you'll find the source code behind every data-driven analysis I wrote for each of the quantamental pieces.
 
