@@ -10,3 +10,4 @@ runtime.
 | `equity_duration.py` | Equity Duration Is Not Where Investors Think | FRED (DGS10, DFII10) + Yahoo daily |
 | `macro_regime.py` | Macro Regimes, Not Macro Prints | FRED monthly + Yahoo monthly |
 | `dupont_roe.py` | Three Roads to ROE | SEC EDGAR XBRL + Yahoo + FRED |
+| `sentiment_tails.py` | Fear Buys Variance, Not Return | FRED API (needs free `FRED_API_KEY`) + Yahoo monthly |

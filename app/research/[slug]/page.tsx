@@ -4,6 +4,7 @@ import { getAllResearch } from "@/lib/content";
 import EquityDurationArticle from "@/components/research/EquityDurationArticle";
 import ProfitDuPontArticle from "@/components/research/ProfitDuPontArticle";
 import MacroRegimeArticle from "@/components/research/MacroRegimeArticle";
+import SentimentTailsArticle from "@/components/research/SentimentTailsArticle";
 
 export async function generateStaticParams() {
   const items = await getAllResearch();
@@ -36,6 +37,8 @@ export default async function ResearchArticle({ params }: { params: Promise<{ sl
         <ProfitDuPontArticle meta={meta} />
       ) : slug === "2026-05-30-macro-regime" ? (
         <MacroRegimeArticle meta={meta} />
+      ) : slug === "2026-07-04-sentiment-tails" ? (
+        <SentimentTailsArticle meta={meta} />
       ) : (
         // Draft fallback for entries without a full data-bound article yet.
         <article className="mx-auto max-w-[760px] pb-16">

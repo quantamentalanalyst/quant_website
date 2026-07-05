@@ -1,0 +1,1 @@
+{"root": {"thr": 0.61, "meanL": 1.7, "meanR": 3.9, "nL": 227, "nR": 88}, "left": {"thr": -0.01, "meanL": 2.3, "meanR": 0.6, "nL": 145, "nR": 82}, "right": {"thr": 0.89, "meanL": 5.9, "meanR": 2.9, "nL": 30, "nR": 58}}
