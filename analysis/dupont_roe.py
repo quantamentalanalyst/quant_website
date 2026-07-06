@@ -30,6 +30,7 @@ polite pacing.
 """
 
 import json
+import os
 import time
 from pathlib import Path
 
@@ -41,6 +42,9 @@ import statsmodels.api as sm
 EDGAR_UA = {"User-Agent": "quantamental-research anthonyhuang@aya.yale.edu",
             "Accept": "application/json"}
 WEB_UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0"}
+# Official FRED API when a key is present; free key at
+# https://fredaccount.stlouisfed.org/apikeys  ->  set FRED_API_KEY.
+FRED_KEY = os.environ.get("FRED_API_KEY", "").strip()
 OUT = Path("content/research/2026-04-15-profit-dupont/data")
 HAC_L = 6
 MULT_CAP = 15        # beyond ~15x assets/equity the denominator is buyback noise
@@ -155,6 +159,26 @@ def yahoo_monthly(sym):
 
 
 def fred_dgs10_monthly():
+    # official API when FRED_API_KEY is set (the website CSV tarpits scripts)
+    if FRED_KEY:
+        url = ("https://api.stlouisfed.org/fred/series/observations"
+               f"?series_id=DGS10&api_key={FRED_KEY}&file_type=json"
+               "&observation_start=2008-01-01")
+        for attempt in range(4):
+            try:
+                resp = requests.get(url, headers=WEB_UA, timeout=60)
+                if resp.ok:
+                    obs = [(o["date"], float(o["value"]))
+                           for o in resp.json().get("observations", [])
+                           if o.get("value") not in (None, ".", "")]
+                    if obs:
+                        s = pd.Series([v for _, v in obs],
+                                      index=pd.PeriodIndex(
+                                          pd.to_datetime([d for d, _ in obs]), freq="M"))
+                        return s.groupby(level=0).last().to_dict()
+            except (requests.RequestException, ValueError, KeyError):
+                pass
+            time.sleep(2 * (attempt + 1))
     url = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DGS10&cosd=2008-01-01"
     for attempt in range(5):
         try:

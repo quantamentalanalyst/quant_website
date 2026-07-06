@@ -9,18 +9,19 @@ breakeven, and real controlling for the market factor). Everything gets
 Newey-West (HAC) standard errors because daily returns are fat-tailed and
 serially correlated, and OLS t-stats flatter you otherwise.
 
-Data: FRED (DGS10, DFII10 - no key needed) and Yahoo daily adjusted closes.
+Data: FRED (DGS10, DFII10) and Yahoo daily adjusted closes.
 Output: JSON files the article page reads, under
 content/research/2026-02-01-equity-duration/data/
 
-Run from the repo root:
+Run from the repo root (set FRED_API_KEY for the official API route):
     python analysis/equity_duration.py
 
-Takes a couple of minutes; FRED 504s on long date ranges so the yield series
-come down in 3-year chunks.
+Takes a couple of minutes. Without a key it falls back to the website CSV,
+which 504s on long ranges (hence 3-year chunks) and tarpits scripted bursts.
 """
 
 import json
+import os
 import time
 from pathlib import Path
 
@@ -30,6 +31,10 @@ import requests
 import statsmodels.api as sm
 
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0"}
+# Official FRED API (api.stlouisfed.org) when a key is present - the website's
+# fredgraph.csv endpoint tarpits scripted clients. Free key:
+# https://fredaccount.stlouisfed.org/apikeys  ->  set FRED_API_KEY.
+FRED_KEY = os.environ.get("FRED_API_KEY", "").strip()
 START, END = "2010-01-01", "2026-01-31"
 FOCUS = "2021-01-01"          # the inflation-regime window for the headline tables
 HAC_LAGS = 5
@@ -49,8 +54,29 @@ GV = [  # growth minus value, three definitions
 
 # data pulls
 def fred(series_id: str) -> pd.Series:
-    """Daily FRED series, fetched in 3y chunks (the graph endpoint times out
-    on a 16-year request more often than not)."""
+    """Daily FRED series. Uses the official API when FRED_API_KEY is set
+    (one request, no chunking); falls back to the website CSV fetched in 3y
+    chunks (that endpoint times out on a 16-year request more often than
+    not, and tarpits scripted bursts)."""
+    if FRED_KEY:
+        url = ("https://api.stlouisfed.org/fred/series/observations"
+               f"?series_id={series_id}&api_key={FRED_KEY}&file_type=json"
+               f"&observation_start={START}&observation_end={END}")
+        for attempt in range(4):
+            try:
+                resp = requests.get(url, headers=UA, timeout=60)
+                if resp.ok:
+                    obs = [(o["date"], float(o["value"]))
+                           for o in resp.json().get("observations", [])
+                           if o.get("value") not in (None, ".", "")]
+                    if obs:
+                        out = pd.Series([v for _, v in obs],
+                                        index=pd.to_datetime([d for d, _ in obs]))
+                        return out.sort_index()
+            except (requests.RequestException, ValueError, KeyError):
+                pass
+            time.sleep(2 * (attempt + 1))
+        return pd.Series(dtype=float)
     frames = []
     y0, y1 = int(START[:4]), int(END[:4])
     for y in range(y0, y1 + 1, 3):

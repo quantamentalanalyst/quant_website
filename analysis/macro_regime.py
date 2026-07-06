@@ -28,6 +28,7 @@ VIX falls back to Yahoo ^VIX; the curve is dropped rather than proxied.
 """
 
 import json
+import os
 import time
 from pathlib import Path
 
@@ -37,6 +38,10 @@ import requests
 import statsmodels.api as sm
 
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0"}
+# Official FRED API (api.stlouisfed.org) when a key is present - the website's
+# fredgraph.csv endpoint tarpits scripted clients. Free key:
+# https://fredaccount.stlouisfed.org/apikeys  ->  set FRED_API_KEY.
+FRED_KEY = os.environ.get("FRED_API_KEY", "").strip()
 FRED_START = "1990-01-01"
 SAMPLE0 = pd.Period("2000-01", "M")
 END = pd.Period("2026-05", "M")
@@ -64,8 +69,33 @@ KEYS = {"Reflation": "G↑ I↑", "Goldilocks": "G↑ I↓",
 
 
 # data pulls
+def _fred_align(dates, vals) -> np.ndarray:
+    """Month-end last observation, aligned to MONTHS."""
+    s = pd.Series(vals, index=pd.PeriodIndex(pd.to_datetime(dates), freq="M"))
+    s = s.groupby(level=0).last()
+    return s.reindex(MONTHS).to_numpy(dtype=float)
+
+
 def fred_monthly(sid: str) -> np.ndarray:
-    """FRED series resampled to month-end last observation, aligned to MONTHS."""
+    """FRED series via the official API when FRED_API_KEY is set; falls back
+    to the website CSV (which tarpits scripted bursts) without one."""
+    if FRED_KEY:
+        url = ("https://api.stlouisfed.org/fred/series/observations"
+               f"?series_id={sid}&api_key={FRED_KEY}&file_type=json"
+               f"&observation_start={FRED_START}&observation_end=2026-05-31")
+        for attempt in range(4):
+            try:
+                resp = requests.get(url, headers=UA, timeout=60)
+                if resp.ok:
+                    obs = [(o["date"], float(o["value"]))
+                           for o in resp.json().get("observations", [])
+                           if o.get("value") not in (None, ".", "")]
+                    if obs:
+                        return _fred_align([d for d, _ in obs], [v for _, v in obs])
+            except (requests.RequestException, ValueError, KeyError):
+                pass
+            time.sleep(2 * (attempt + 1))
+        return np.full(N, np.nan)
     url = (f"https://fred.stlouisfed.org/graph/fredgraph.csv"
            f"?id={sid}&cosd={FRED_START}&coed=2026-05-31")
     for attempt in range(5):
@@ -75,10 +105,7 @@ def fred_monthly(sid: str) -> np.ndarray:
                 df = pd.read_csv(pd.io.common.StringIO(resp.text), na_values=".")
                 df.columns = ["date", "val"]
                 df = df.dropna()
-                s = pd.Series(df["val"].values,
-                              index=pd.PeriodIndex(pd.to_datetime(df["date"]), freq="M"))
-                s = s.groupby(level=0).last()
-                return s.reindex(MONTHS).to_numpy(dtype=float)
+                return _fred_align(df["date"], df["val"].values)
         except requests.RequestException:
             pass
         time.sleep(0.8 * (attempt + 1))
