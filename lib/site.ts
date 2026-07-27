@@ -32,7 +32,8 @@ export const site = {
   // add an item. `date` is YYYY-MM (or YYYY-MM-DD); `venue` is the dim source
   // line; `note` is an optional amber personal aside; `href` makes the
   // headline a clickable blue article link (leave "" for none); `image` is an
-  // optional path (under /public) shown as a hover preview (leave "" for none).
+  // optional path (under /public) — when set, clicking the headline opens the
+  // link in a new tab AND raises the terminal Image Popup (leave "" for none).
   news: [
     {
       date: "2026-06",
