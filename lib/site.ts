@@ -41,7 +41,7 @@ export const site = {
       venue: "Commodity Trading Week Americas",
       note: "",
       href: "https://americas.commoditytradingweek.com/speakers",
-      image: "",
+      image: "/news/commodity-trading-week-panel.jpg",
     },
     {
       date: "2026-04",
