@@ -10,3 +10,6 @@ next-env.d.ts
 # local tooling / caches
 .claude/
 __pycache__/
+
+# research download caches (re-creatable by the analysis scripts)
+analysis/.cache/
