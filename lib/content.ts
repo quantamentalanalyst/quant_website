@@ -10,7 +10,7 @@ export type ResearchMeta = {
   date: string;
   abstract: string;
   tags: string[];
-  driver?: string; // profit | rates | sentiment | macro
+  driver?: string; // profit | rates | sentiment | macro | crowding
   status?: "published" | "draft";
   readingTime?: number; // minutes
   links?: { pdf?: string; code?: string; ssrn?: string; data?: string };

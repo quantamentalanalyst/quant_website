@@ -11,3 +11,4 @@ runtime.
 | `macro_regime.py` | Macro Regimes, Not Macro Prints | FRED monthly + Yahoo monthly |
 | `dupont_roe.py` | Three Roads to ROE | SEC EDGAR XBRL + Yahoo + FRED |
 | `sentiment_tails.py` | Fear Buys Variance, Not Return | FRED API (needs free `FRED_API_KEY`) + Yahoo monthly |
+| `ai_crowding.py` | Factor or Crowd? Measuring AI Exposure and Crowding | SEC EDGAR 10-K text + XBRL frames + Yahoo daily + Kenneth R. French Data Library (first run ~1h, cached in `analysis/.cache/`) |
