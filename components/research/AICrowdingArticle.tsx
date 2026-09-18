@@ -27,7 +27,6 @@ const YH = "Yahoo Finance daily prices";
 const KF = "Kenneth R. French Data Library (CRSP-based)";
 const CALC = "author's calculations";
 
-// Fama-French 49-industry short codes -> readable names
 const IND: Record<string, string> = {
   Softw: "Computer Software", Chips: "Electronic Equipment (semis)", Hardw: "Computers",
   BusSv: "Business Services", LabEq: "Measuring & Control Equip.", ElcEq: "Electrical Equipment",
@@ -36,7 +35,9 @@ const IND: Record<string, string> = {
   Fin: "Trading", Hlth: "Healthcare", Agric: "Agriculture", Cnstr: "Construction",
   Clths: "Apparel", MedEq: "Medical Equipment", Whlsl: "Wholesale", RlEst: "Real Estate",
   Trans: "Transportation", Telcm: "Communication", Steel: "Steel", Coal: "Coal", Oil: "Oil",
-  Soda: "Soft Drinks", Toys: "Recreation", Fun: "Entertainment",
+  Soda: "Soft Drinks", Toys: "Recreation", Fun: "Entertainment", BldMt: "Building Materials",
+  Paper: "Business Supplies", Insur: "Insurance", Books: "Printing & Publishing", Chems: "Chemicals",
+  Rubbr: "Rubber & Plastic", Other: "Other",
 };
 const ind = (k: string | null) => (k ? IND[k] ?? k : "—");
 
@@ -59,10 +60,19 @@ function Takeaway({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+function Revised({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="my-5 border-l-2 border-rule-strong bg-bg-sunken px-4 py-3">
+      <div className="section-label mb-1.5 text-text-dim">revision note</div>
+      <p className="font-mono text-[12.5px] leading-[20px] text-text-dim">{children}</p>
+    </div>
+  );
+}
 const Em = ({ children }: { children: React.ReactNode }) => <span className="text-data">{children}</span>;
 const mns = (x: number | null | undefined, d?: number) =>
   x == null ? "—" : (x < 0 ? "−" : "") + (d == null ? Math.abs(x) : Math.abs(x).toFixed(d));
-const sgn = (x: number | null | undefined, d?: number) => (x == null ? "—" : x >= 0 ? "+" + (d == null ? x : x.toFixed(d)) : mns(x, d));
+const sgn = (x: number | null | undefined, d?: number) =>
+  x == null ? "—" : x >= 0 ? "+" + (d == null ? x : x.toFixed(d)) : mns(x, d);
 const ci = (lo: number | null | undefined, hi: number | null | undefined) => `[${mns(lo)}, ${mns(hi)}]`;
 const fx = (x: number | null | undefined, d: number) => (x == null ? "—" : mns(x, d));
 const Th = ({ children, r }: { children: React.ReactNode; r?: boolean }) => (
@@ -108,44 +118,61 @@ export default function AICrowdingArticle({ meta }: { meta: ResearchMeta }) {
   const gNone = event.groups.find((g) => g.grp === "none")!;
   const gQ5 = event.groups.find((g) => g.grp === "Q5")!;
   const nvdaEv = event.top.find((t) => t.tic === "NVDA");
+  const q90 = event.qreg["0.9"]!;
 
   const st = (k: string) => factor.stats.find((s) => s.key === k)!;
-  const aix = st("AIX"), inx = st("IN"), a10 = st("AIX10"), aew = st("AIXew"), mkt = st("Mkt-RF");
+  const aix = st("AIX"), inx = st("IN"), a10 = st("AIX10"), aew = st("AIXew"), aixb = st("AIXB"), mkt = st("Mkt-RF");
   const sp = factor.spanning;
   const FAC = ["Mkt-RF", "SMB", "HML", "RMW", "CMA", "MOM"] as const;
-  const brk = sp.breakAIX;
+  const EXF = ["MKTx", "SMBx", "VALx", "MOMx"] as const;
+  const brk = sp.breakAIX, chow = sp.chow, oos = sp.oos;
+  const cAt = (d: string) => factor.curve.find((c) => c.date === d)!;
+  const c16 = cAt("2016-01"), c19 = cAt("2019-01"), c22 = cAt("2022-11"), cNow = factor.curve[factor.curve.length - 1]!;
 
   const dH = decomp[0]!, dL = decomp[1]!;
-  const exAI = dH.cap! - dL.cap!;
+  const exCap = dH.cap! - dL.cap!;
   const exSales = dH.sales! - dL.sales!;
-  const exRerate = dH.rerate! - dL.rerate!;
+  const exMargin = dH.margin! - dL.margin!;
+  const exMult = dH.mult! - dL.mult!;
 
   const D = (k: string) => crowding.dash.find((d) => d.key === k)!;
-  const dEx = D("excess"), dCoH = D("coH"), dCoB = D("coB"), dEx1 = D("excess1"), dExT = D("excessT"), dCoT = D("coT");
-  const dVal = D("val"), dValI = D("valInd"), dCap = D("capH"), dTop = D("top10"), dRun = D("runup"), dVol = D("fvol"), dCr = D("crowd");
+  const dEx = D("excess"), dCoH = D("coH"), dCoB = D("coB"), dEx1 = D("excess1");
+  const dExT = D("excessT"), dCoT = D("coT"), dExTech = D("excessTtech"), dExFac = D("excessTfac");
+  const dValI = D("valInd"), dVal = D("val"), dValVW = D("valVW"), dValAgg = D("valAgg");
+  const dCap = D("capH"), dTop = D("top10"), dTopU = D("top10U"), dEffN = D("effNH");
+  const dRun = D("runup"), dVol = D("fvol"), dCrRaw = D("crowdRaw"), dCr = D("crowd"), dCrVW = D("crowdVW");
   const core = crowding.core;
   const coreInds = Object.entries(core.inds as Record<string, number>);
+  const th10 = core.thresh.find((t) => t.pct === 10)!;
+  const th5 = core.thresh.find((t) => t.pct === 5)!;
+  const th20 = core.thresh.find((t) => t.pct === 20)!;
+  const lastSeries = crowding.series[crowding.series.length - 1]!;
 
   const pr = (x: string, y: string) => predict.find((p) => p.x === x && p.y === y)!;
-  const pRun12 = pr("runup", "r12"), pRun6 = pr("runup", "r6"), pRunDD = pr("runup", "dd12");
-  const pCap6 = pr("capH", "vol6"), pCapDD = pr("capH", "dd12"), pCr12 = pr("crowdFS", "r12");
-  const minP = Math.min(...predict.map((p) => p.p ?? 1));
-  const minBonf = Math.min(...predict.map((p) => p.pBonf ?? 1));
+  const pRun12 = pr("runup", "r12"), pRun6 = pr("runup", "r6");
+  const pValDD = pr("valVW", "dd12"), pCr12 = pr("crowdFS", "r12");
+  const bestCell = predict.reduce((a, b) => ((a.p ?? 1) <= (b.p ?? 1) ? a : b));
   const mdeR12 = predict.filter((p) => p.y === "r12").map((p) => p.mde ?? 0);
 
   const base = gsy.base;
-  const th = (lab: string) => gsy.thr.find((t) => t.label.startsWith(lab))!;
-  const t100 = th("100% raw & net (baseline)"), t150 = th("150%"), t50 = th("50%"), tRaw = th("100% raw only"), t45 = th("100% raw & net, since 1945");
+  const th = (k: string) => gsy.thr.find((t) => t.label.startsWith(k))!;
+  const tBase = th("GSY baseline"), tNet = th("  — also"), t150 = th("150%"), t50 = th("50%");
+  const t2yOnly = th("100% 2y only"), t45 = th("100% 2y + 50% 5y, since 1945"), tExDot = th("100% 2y + 50% 5y, ex");
   const now = (k: string) => gsy.now.find((x) => x.ind === k)!;
   const chips = now("Chips"), hardw = now("Hardw"), softw = now("Softw");
-  const aiNamed = gsy.named.filter((e) => ["Chips", "Softw", "Hardw"].includes(e.ind) && e.date >= "1990");
   const openEp = gsy.named.filter((e) => e.open);
-  const dot = gsy.named.filter((e) => e.date >= "1999-01" && e.date <= "2000-12");
-  const dotCrash = dot.filter((e) => e.crash).length;
+  const hardwEp = openEp.find((e) => e.ind === "Hardw");
+  const softwEp = gsy.named.find((e) => e.ind === "Softw" && e.date.startsWith("1998"))!;
+  const chipsEp = gsy.named.find((e) => e.ind === "Chips" && e.date.startsWith("1999"))!;
+  const chips24 = gsy.named.find((e) => e.ind === "Chips" && e.date.startsWith("2024"))!;
+  const techEp = gsy.named.filter((e) => ["Chips", "Softw", "Hardw"].includes(e.ind) && e.date >= "1990");
   const multi = gsy.multi;
+  const runChar = gsy.chars.find((c) => c.key === "run")!;
+  const volChar = gsy.chars.find((c) => c.key === "vol")!;
 
   const PRED_X: Record<string, string> = {
-    excess: "Excess comovement", valInd: "Valuation spread (ind.-adj.)", capH: "Float-cap share",
+    excess: "Excess comovement (broad)", excessT: "Excess comovement (core)",
+    valVW: "Valuation spread (VW)", capH: "Float-cap share",
     runup: "24m factor run-up", crowdFS: "Crowding composite",
   };
 
@@ -161,140 +188,126 @@ export default function AICrowdingArticle({ meta }: { meta: ResearchMeta }) {
           <span className="text-text-faint">{site.name}</span>
         </div>
         <h1 className="text-[26px] leading-[1.15] text-text">{meta.title}</h1>
-        <p className="mt-4 max-w-[74ch] font-mono text-[13px] leading-[22px] text-text-dim">{meta.abstract}</p>
+        <p className="mt-4 max-w-[74ch] font-mono text-[13px] leading-[22px] text-text-dim">
+          Is AI a factor or a crowd? Exposure measured point-in-time from {S.docs.toLocaleString()} 10-K
+          filings says: neither, exactly. The AI long-short is largely a style bundle when priced against
+          the published factors — but those factors now contain the AI names, and against styles rebuilt
+          without them the alpha returns. The median AI firm is not expensive; the cap-weighted AI book
+          is. And since spring 2026 the most AI-intensive names have started to trade as a bloc.
+        </p>
       </header>
 
       {/* 00 */}
       <Section n="00" title="Executive summary" />
-      <P>
-        “The AI trade is crowded” is among the most-repeated sentences in markets and among the
-        least-measured. The claim bundles two different hypotheses. One is that AI is a{" "}
-        <em>factor</em>: a distinct source of common return variation that investors are paid, or
-        not paid, to bear. The other is that it is a <em>crowd</em>: a position whose comovement,
-        valuation and concentration tell you more about who owns it than about what it earns. This piece
-        tests both, in forms that can fail. Exposure comes from the text of {S.docs.toLocaleString()}{" "}
-        10-K filings, dated to the day each was filed. Crowding is measured four ways against explicit
-        benchmarks. And because a ten-year-old trade cannot tell you how its own story ends, the crash
-        question borrows a century of survivorship-free industry history.
-      </P>
       <ul className="mb-4 ml-1 space-y-1.5 font-mono text-[13px] leading-[20px] text-text">
         {[
-          <>Talk is not exposure, at least not before 2023. Firms that discussed AI most in the 10-Ks they filed before ChatGPT did not earn higher abnormal returns in the repricing that followed: <Em>{sgn(reg.car.b)}pp per σ</Em> of exposure (t = {mns(reg.car.t)}, industry fixed effects), and {sgn(reg.carVW.b)}pp (t = {reg.carVW.t}) value-weighted. The winners were a handful of names, not the disclosers.</>,
-          <>As a factor, AI is mostly old styles in new clothes. The AI-minus-low-AI portfolio loads long on the market and short on size, value, profitability and conservative investment. Six factors explain <Em>{sp.AIX.full!.r2}%</Em> of its variance ({sp.AIX.post!.r2}% after ChatGPT), and its alpha of {sgn(sp.AIX.full!.alpha)}%/yr (t = {sp.AIX.full!.tA}) is not significant, with no break at ChatGPT (Δα = {sgn(brk.diff)}pp, t = {brk.t}).</>,
-          <>The AI cohort's gain was mostly re-rating. Holding the November-2022 AI leg fixed, its market value rose {dH.cap} log points: {dH.sales} from sales and <Em>{dH.rerate} from a higher price-to-sales multiple</Em>. Against the low-AI leg, {Math.round((exRerate / exAI) * 100)}% of the excess gain is multiple, and five names delivered {dH.top5}% of the cohort's dollar gain.</>,
-          <>AI is crowded in a specific way: concentration, volatility and, recently, a comoving core. It is not crowded on valuation. The AI leg is <Em>{dCap.last}% of universe float-cap</Em> ({ordinal(dCap.pct)} percentile), factor volatility is at its sample high ({dVol.last}%), and since spring 2026 the top-decile core has comoved beyond size-matched peers ({sgn(dExT.last)}, 95% CI {ci(core.lo, core.hi)}). Valuation is not the problem: the industry-adjusted spread is {sgn(dValI.last)} log points, the same as its pre-ChatGPT average ({sgn(dValI.pre)}), and the raw spread is at its {ordinal(dVal.pct)} percentile.</>,
-          <>History says the risk is in the tail, not the mean. Across the French 49 industries since 1926, two-year run-ups above 100% (raw and net of market) crashed 40% within two years <Em>{t100.crash}%</Em> of the time (CI {t100.lo}–{t100.hi}), against {base.crash}% unconditionally, and {t150.crash}% above 150%. Mean forward returns net of the market are not reliably negative ({sgn(t100.n24)}pp, CI {ci(t100.nlo, t100.nhi)}). Semiconductors peaked at a {chips.peak36}% run-up ({chips.peakNet36}% net, a hair under the bar); Computers are inside a qualifying episode today.</>,
+          <>Disclosure diffused, then changed character. AI mentions went from <Em>{a15.share}%</Em> of filings in 2015 to <Em>{a26.share}%</Em> in 2026 — but the Business section's share of those mentions fell from {mix16.year === 2016 ? adoption.find((a) => a.year === 2016)!.bShare : null}% to <Em>{a26.bShare}%</Em>. By 2026, {a26.shareR}% of filers discuss AI in Risk Factors against {a26.shareB}% in Business. Most of the diffusion is boilerplate about somebody else's AI.</>,
+          <>The published factors have partly become the AI trade, so "AI is just old styles" is partly circular. Against FF5+momentum the long-short's alpha is {sgn(sp.AIX.full!.alpha)}%/yr (t = {sp.AIX.full!.tA}) with R² {sp.AIX.full!.r2}%. Against style factors <em>rebuilt without AI-leg stocks</em>, alpha is <Em>{sgn(sp.exAI.full!.alpha)}%/yr</Em> (t = {sp.exAI.full!.tA}) and R² falls to {sp.exAI.full!.r2}%. Sorting on Business-section language only, post-ChatGPT alpha is <Em>{sgn(sp.AIXB.post!.alpha)}%/yr (t = {sp.AIXB.post!.tA})</Em>.</>,
+          <>The cohort's market-cap gain was not mostly re-rating. With TTM fundamentals and margins separated, the Nov-2022 AI cohort's {sgn(dH.cap)} log points split into {sgn(dH.sales)} sales, <Em>{sgn(dH.margin)} margin</Em> and {sgn(dH.mult)} multiple. Against the low-AI leg — which re-rated <em>more</em> ({sgn(dL.mult)}) — the AI cohort's excess gain is {sgn(exSales, 1)} sales and {sgn(exMargin, 1)} margin against {sgn(exMult, 1)} multiple.</>,
+          <>Crowded on concentration and comovement, not on the median multiple. The industry-adjusted median valuation spread is {sgn(dValI.last, 2)} ({ordinal(dValI.pct)} percentile) while the float-weighted spread is <Em>{sgn(dValVW.last, 2)}</Em> ({ordinal(dValVW.pct)}). Factor volatility is at its sample high ({dVol.last}%), and since spring 2026 the top-decile core comoves beyond size- <em>and</em> tech-matched peers (<Em>{sgn(dExTech.last, 3)}</Em>, {ordinal(dExTech.pct)} percentile) — exploratory, but it strengthens under every control I could think to impose.</>,
+          <>Nothing predicts, and the one pattern that looked like it did was an artefact. Run-up reversal ({sgn(pRun12.b)}pp per σ at 12 months, HAC t = {mns(pRun12.t)}) has a bootstrap p of <Em>{pRun12.p}</Em> once the null reproduces Stambaugh bias; no cell survives Romano-Wolf (min p = {S.predMinRW}).</>,
+          <>History prices the tail, not the mean. Under the Greenwood-Shleifer-You design — a 40% drawdown from the running peak — two-year doublings crash <Em>{tBase.crash}%</Em> of the time (CI {tBase.lo}–{tBase.hi}) against a volatility-matched base rate of {tBase.volMatched}%, and <Em>{tNet.crash}%</Em> when the run-up also beats the market by 100%. Computers are inside a live episode; semiconductors peaked just under the bar.</>,
         ].map((t, i) => (
           <li key={i} className="flex gap-2"><span className="text-accent">{String(i + 1).padStart(2, "0")}</span><span>{t}</span></li>
         ))}
       </ul>
+      <Revised>
+        This is the second draft. Referee comments changed four headline numbers, and the text says so at
+        each point rather than quietly restating them: the re-rating share of the AI cohort's gain (§05),
+        the spanning verdict (§04), the crash frequency (§08) and the run-up reversal (§07). Where a
+        result moved, the first-draft number is shown alongside the corrected one.
+      </Revised>
 
       {/* 01 */}
       <Section n="01" title="Two hypotheses, stated so they can fail" />
       <P>
-        A <em>factor</em>, in the sense of Fama and French (2015), has two properties: stocks sorted on the
-        characteristic share common return variation, and the long-short return either earns a premium
-        or is spanned by factors that do. If AI is a factor in its own right, an AI long-short should
-        leave material variance unexplained by the market, size, value, profitability, investment and
-        momentum, and ideally carry an alpha against them. If it is merely a relabeling, those six will
-        span it.
+        A <em>factor</em>, in the sense of Fama and French (2015), needs two things: stocks sorted on the
+        characteristic must share common return variation, and the long-short must either earn a premium
+        or be spanned by factors that do. A <em>crowd</em> is harder. Stein (2009) framed the problem —
+        when many investors hold the same position, none can see the others, and the price impact of a
+        joint exit is in nobody's risk model — and Lou and Polk (2022) made it measurable: crowding
+        leaves a fingerprint in excess return correlation among the stocks the crowd holds, beyond what
+        common factors explain. Brown, Howard and Lundblad (2022) link that fingerprint directly to tail
+        outcomes, which is where §08 ends up. Barberis, Shleifer and Wurgler (2005) show the same
+        signature appearing mechanically on index inclusion, which is why every comovement number below
+        is measured against a matched benchmark rather than against zero.
       </P>
       <P>
-        A <em>crowd</em> is harder to define, which is why it is so rarely measured. Stein (2009) framed
-        the problem: when many arbitrageurs pile into the same signal, none of them can see the others'
-        positions, and the price impact of their joint exit is not in anyone's model. Lou and Polk (2022)
-        made it measurable. Crowding leaves a fingerprint in excess return correlation among the stocks
-        the crowd holds, beyond what common factors explain. Barberis, Shleifer and Wurgler (2005) showed
-        the same fingerprint appearing mechanically when a stock joins the S&amp;P 500. I use that
-        fingerprint alongside three blunter gauges: valuation, concentration, and the factor's own
-        run-up and volatility.
-      </P>
-      <P>
-        The limit is time. The AI trade, as a trade, is about four years old, and the exposure measure
-        only has cross-sectional dispersion from about 2017. That is not enough history to learn how
-        crowded trades end. Greenwood, Shleifer and You (2019) showed that industry-level price run-ups
-        do not predict low average returns but do predict elevated crash probability, and their design
-        runs on industry portfolios that exist, survivorship-free, back to 1926. Section 08 borrows that
-        power.
+        There is a trap in testing the first hypothesis in 2026, and the first draft of this piece fell
+        into it. If the AI names are a fifth of the market and most of the big-growth corner of the value
+        and investment factors, then "the factors span AI" and "AI became the factors" are the same
+        regression. §04 separates them by rebuilding the styles without AI-leg stocks. The second trap is
+        time: the AI trade is about four years old, which is not enough history to learn how crowded
+        trades end. §08 borrows a century of survivorship-free industry data for that, following
+        Greenwood, Shleifer and You (2019).
       </P>
 
       {/* 02 */}
-      <Section n="02" title="Measuring AI exposure from 22,000 annual reports" />
+      <Section n="02" title="Measuring AI exposure, and separating talk from business" />
       <P>
-        The universe is every NYSE- and Nasdaq-listed 10-K filer that ranked in the top{" "}
-        {(1300).toLocaleString()} by dollar public float in any year from 2014 to 2025 ({S.firmsText.toLocaleString()}{" "}
-        firms). Public float is the market value of non-affiliate shares that each filer reports on its
-        own cover page. For each firm I downloaded every 10-K primary document filed between January 2015
-        and August 2026 from EDGAR, stripped the HTML and the hidden inline-XBRL header, and counted a
-        fixed dictionary. The dictionary has seven phrases (<em>artificial intelligence, machine learning,
-        deep learning, neural network, large language model, natural language processing, computer
-        vision</em>) plus the bare tokens <em>AI</em>, <em>GenAI</em> and <em>LLM</em>, matched
-        case-sensitively so that “ai” inside words cannot fire. “Generative AI” is counted once, through
-        its AI token. Exposure is mentions per 10,000 words:
+        The universe is every NYSE- and Nasdaq-listed 10-K filer that ranked in the top 1,300 by dollar
+        public float in any year from 2014 to 2025 ({S.firmsText.toLocaleString()} firms). For each I
+        downloaded every 10-K primary document filed between January 2015 and August 2026
+        ({S.docs.toLocaleString()} filings, median {S.medianWords.toLocaleString()} words), stripped the
+        HTML and inline-XBRL header, and counted a fixed dictionary: seven phrases (<em>artificial
+        intelligence, machine learning, deep learning, neural network, large language model, natural
+        language processing, computer vision</em>) plus the bare tokens <em>AI</em>, <em>GenAI</em> and{" "}
+        <em>LLM</em>, matched case-sensitively. Exposure is mentions per 10,000 words, dated to the
+        filing date:
       </P>
       <TeXBlock eq="1">{"\\mathrm{AI}_{i,t}=10^{4}\\times\\frac{\\sum_{k}\\operatorname{count}_k\\!\\left(\\text{10-K}_{i,\\tau}\\right)}{\\operatorname{words}\\!\\left(\\text{10-K}_{i,\\tau}\\right)},\\qquad \\tau=\\max\\{\\text{filing date}\\le t\\}"}</TeXBlock>
       <P>
-        The score a firm carries at month-end <TeX>{"t"}</TeX> comes from the latest 10-K it had{" "}
-        <em>filed</em> by then, which rules out look-ahead from the fiscal-year date. At each month-end the
-        universe is the {S.nUniverse?.toLocaleString()} largest firms by float value. Each firm's
-        cover-page float is rolled forward with its split-adjusted price, and every float is checked
-        against unadjusted price × cover-page shares on its own date. That check caught{" "}
-        {S.floatFixed} filings tagged with an exact 1,000× scale error, which were rescaled, and{" "}
-        {S.floatDropped + S.floatUnverifiedDropped} that could not be reconciled, which were dropped.
-        The {S.docsWrapper} “10-Ks” under {(10000).toLocaleString()} words are wrappers that incorporate the
-        annual report by reference, and they are excluded.
+        The referee's cheapest suggestion turned out to be the most valuable: a mention in Item 1A (Risk
+        Factors) — “our competitors may deploy AI” — is not the same economic signal as a mention in Item
+        1 (Business). I re-read all {S.docs.toLocaleString()} filings and split them at the section
+        headings, which parse cleanly in <Em>{S.secParsed}%</Em> of documents, then counted each section
+        separately. Figure 1 is the result, and it reframes the adoption curve. Mentions went from{" "}
+        {a15.share}% of filings in 2015 to <Em>{a26.share}%</Em> in 2026, but the Business section's
+        share of all AI words fell from {adoption.find((a) => a.year === 2016)!.bShare}% to{" "}
+        <Em>{a26.bShare}%</Em>. In 2026, {a26.shareR}% of filers mention AI in Risk Factors against{" "}
+        {a26.shareB}% in Business. The diffusion everyone cites is mostly firms writing about somebody
+        else's AI. The vocabulary converged too: the bare “AI” token was {mix16.ai_token}% of dictionary
+        hits in 2016 and {mix25.ai_token}% in 2025, while “machine learning” fell from{" "}
+        {mix16.machine_learning}% to {mix25.machine_learning}%.
       </P>
-      <P>
-        Figure 1 is the adoption curve, and it is the first finding. In 2015 <Em>{a15.share}%</Em> of
-        these filings mentioned AI at all. By 2022, the year ChatGPT launched, {a22.share}% did. Then the
-        curve broke: {a24.share}% in 2024 and <Em>{a26.share}%</Em> of the 10-Ks filed so far in 2026.
-        Generative-AI language went from {a23.shareGen}% of filings in 2023 to {a26.shareGen}%. The
-        vocabulary converged too: the bare “AI” token was {mix16.ai_token}% of dictionary hits in 2016 and{" "}
-        {mix25.ai_token}% in 2025, while “machine learning” fell from {mix16.machine_learning}% to{" "}
-        {mix25.machine_learning}%. A dictionary that everyone now triggers loses discriminating power at
-        the bottom, which is why every sort below ranks on <em>intensity</em>, not mention. At the 2026
-        cross-section the top-quintile cutoff is {S.q80_last} mentions per 10k words and the
-        bottom-30% cutoff is {S.q30_last}.
-      </P>
-      <Figure n={1} title="Share of 10-K filings mentioning AI, by filing year (large-cap universe)" source={`${SEC}; ${CALC}. Primary 10-K documents only; ${a26.n.toLocaleString()} filings in 2026 through August.`}>
+      <Figure n={1} title="AI disclosure: how much, and in which section" source={`${SEC}; ${CALC}. Primary 10-K documents only; ${a26.n.toLocaleString()} filings in 2026 through August. Section split parses in ${S.secParsed}% of filings.`}>
         <LineChart
-          height={260} decimalsLeft={0} yLabelLeft="% of filings"
+          height={270} decimalsLeft={0} decimalsRight={0}
+          yLabelLeft="% of filings mentioning" yLabelRight="Business share of AI words (%)"
           series={[
-            { name: "mentions AI (any)", color: AMBER, data: adoption.map((a) => ({ date: `${a.year}-07`, value: a.share! })) },
-            { name: "mentions generative AI / LLMs", color: CYAN, data: adoption.map((a) => ({ date: `${a.year}-07`, value: a.shareGen! })) },
-            { name: "intensity ≥ 5 per 10k words", color: POS, data: adoption.map((a) => ({ date: `${a.year}-07`, value: a.share5! })) },
+            { name: "any AI mention", color: AMBER, axis: "left", data: adoption.map((a) => ({ date: `${a.year}-07`, value: a.share! })) },
+            { name: "in Risk Factors (Item 1A)", color: CYAN, axis: "left", data: adoption.filter((a) => a.shareR != null).map((a) => ({ date: `${a.year}-07`, value: a.shareR! })) },
+            { name: "in Business (Item 1)", color: POS, axis: "left", data: adoption.filter((a) => a.shareB != null).map((a) => ({ date: `${a.year}-07`, value: a.shareB! })) },
+            { name: "Business share of AI words", color: DIM, axis: "right", data: adoption.filter((a) => a.bShare != null).map((a) => ({ date: `${a.year}-07`, value: a.bShare! })) },
           ]}
         />
       </Figure>
       <Table>
-        <Head><Th>Filing year</Th><Th r>10-Ks</Th><Th r>any AI</Th><Th r>GenAI/LLM</Th><Th r>≥ 5 / 10k</Th><Th r>mean</Th><Th r>median</Th><Th r>p90</Th></Head>
+        <Head><Th>Filing year</Th><Th r>10-Ks</Th><Th r>any AI</Th><Th r>in Business</Th><Th r>in Risk Factors</Th><Th r>GenAI/LLM</Th><Th r>mean intensity</Th><Th r>Business</Th><Th r>Risk</Th><Th r>Business share of words</Th></Head>
         <tbody>
           {adoption.map((a) => (
             <tr key={a.year} className={`border-b border-rule ${a.year === 2023 ? "bg-bg-sunken" : ""}`}>
               <td className="px-2 py-1 text-text">{a.year}{a.year === 2026 ? " (Jan–Aug)" : ""}</td>
               <td className="px-2 py-1 text-right font-tabular text-text-faint">{a.n.toLocaleString()}</td>
               <td className="px-2 py-1 text-right font-tabular text-text">{a.share}%</td>
+              <td className="px-2 py-1 text-right font-tabular text-text-dim">{a.shareB}%</td>
+              <td className="px-2 py-1 text-right font-tabular text-text-dim">{a.shareR}%</td>
               <td className="px-2 py-1 text-right font-tabular text-text-dim">{a.shareGen}%</td>
-              <td className="px-2 py-1 text-right font-tabular text-text-dim">{a.share5}%</td>
               <td className="px-2 py-1 text-right"><Num value={a.mean} decimals={2} /></td>
-              <td className="px-2 py-1 text-right"><Num value={a.median} decimals={2} /></td>
-              <td className="px-2 py-1 text-right"><Num value={a.p90} decimals={2} /></td>
+              <td className="px-2 py-1 text-right"><Num value={a.meanB} decimals={2} /></td>
+              <td className="px-2 py-1 text-right"><Num value={a.meanR} decimals={2} /></td>
+              <td className="px-2 py-1 text-right font-tabular text-text">{a.bShare}%</td>
             </tr>
           ))}
         </tbody>
       </Table>
-      <Cap>Table 1. AI disclosure by filing year. Intensity = dictionary mentions per 10,000 words (eq. 1). First post-ChatGPT filing season shaded. Source: {SEC}; {CALC}.</Cap>
+      <Cap>Table 1. AI disclosure by filing year. Intensity = dictionary mentions per 10,000 words (eq. 1); Business and Risk columns are the same measure computed inside Item 1 and Item 1A. First post-ChatGPT filing season shaded. Source: {SEC}; {CALC}.</Cap>
       <P>
-        Face validity is the minimum bar, and Table 2 clears it. The most AI-intensive large filers in the
-        latest cross-section are the names a practitioner would list: NVIDIA, Microsoft, Adobe,
-        ServiceNow, Snowflake, Alphabet, alongside the new AI-infrastructure issuers (CoreWeave,
-        DigitalOcean) and IT-services firms repositioning around AI (ExlService, Cognizant). By float, the AI leg is
-        dominated by the familiar megacaps. Industry aggregates show the diffusion: software exposure
-        went from {names.ind.find((x) => x.ind === "Softw")!.expo19} to{" "}
-        {names.ind.find((x) => x.ind === "Softw")!.expo} mentions per 10k words between 2019 and{" "}
-        {names.asOf}. Semiconductors rose to {names.ind.find((x) => x.ind === "Chips")!.expo}, and
-        retailers, automakers and banks, which barely used the words in 2019, now sit in the middle of
-        the distribution.
+        Two limits of the measure, stated here rather than in the appendix. It updates once a year, in a
+        period when the language moved quarter to quarter — earnings-call text would be timelier. And a
+        dictionary cannot tell selling AI from buying it: a semiconductor firm and a retailer deploying
+        chatbots can score alike. The section split is a partial fix, not a complete one. Table 2 shows
+        the latest cross-section passes the face-validity check either way.
       </P>
       <div className="my-6 grid gap-5 md:grid-cols-2">
         <div className="overflow-x-auto border border-rule">
@@ -326,61 +339,71 @@ export default function AICrowdingArticle({ meta }: { meta: ResearchMeta }) {
           </table>
         </div>
       </div>
-      <Cap>Table 2. Latest cross-section ({names.asOf}). Left: largest members of the AI leg (top exposure quintile) by float value, with weight in the {S.nUniverse?.toLocaleString()}-stock universe. Right: highest-intensity filers. Industries are Fama-French 49 from SEC SIC codes; SIC is sticky (bitcoin miners turned AI hosts still file as finance companies). Source: {SEC}, {YH}; {CALC}.</Cap>
+      <Cap>Table 2. Latest cross-section ({names.asOf}). Industries are Fama-French 49 from SEC SIC codes, which are sticky and self-reported (bitcoin miners turned AI hosts still file as finance companies); Hoberg-Phillips text-based industries would be the better classifier. Apple is absent from the AI leg: its 10-K intensity falls below the {S.q80_last}-per-10k cutoff, a reminder that disclosure volume is not exposure. Source: {SEC}, {YH}; {CALC}.</Cap>
 
       {/* 03 */}
-      <Section n="03" title="Validation, and a surprise: the disclosers did not win the repricing" />
+      <Section n="03" title="Did disclosure predict the ChatGPT repricing? It depends what you control for" />
       <P>
-        If the text measure captured economic exposure, the natural experiment is ChatGPT's release on
-        30 November 2022. Take each universe firm's exposure from 10-Ks filed <em>before</em> that date.
-        Estimate its six-factor betas on the prior three years of weekly returns, and cumulate abnormal
-        returns from December 2022 through June 2023, the window that ends just after NVIDIA's May 2023
-        guidance reset the market's view of AI demand. Then regress the cross-section of abnormal returns
-        on standardized exposure, with firm size and industry fixed effects, clustering by industry:
+        Take each firm's exposure from 10-Ks filed <em>before</em> 30 November 2022, cumulate abnormal
+        returns from December 2022 through June 2023, and regress the cross-section on standardized
+        exposure with size controls, clustering by industry. The first draft ran this with six-factor
+        abnormal returns and industry fixed effects, found nothing, and called it a null. Both choices
+        were wrong, and reversing them reverses the answer.
       </P>
       <TeXBlock eq="2">{"\\mathrm{CAR}_{i}=a+b\\,z\\!\\left(\\log(1+\\mathrm{AI}_{i,\\,\\text{Nov-22}})\\right)+c\\log \\mathrm{FV}_i+\\gamma_{\\mathrm{ind}(i)}+\\varepsilon_i"}</TeXBlock>
       <P>
-        The answer is no. Across {reg.car.n} firms, a one-σ increase in pre-event exposure is associated
-        with <Em>{sgn(reg.car.b)}pp</Em> of abnormal return (t = {mns(reg.car.t)}). Value-weighting
-        gives {sgn(reg.carVW.b)}pp (t = {reg.carVW.t}), dropping the fixed effects gives{" "}
-        {sgn(reg.carNoFE.b)}pp (t = {reg.carNoFE.t}), and extending the window through December 2024
-        gives {sgn(reg.car2.b)}pp (t = {reg.car2.t}). The placebo window before the event is equally flat
-        ({sgn(reg.plc.b)}pp, t = {mns(reg.plc.t)}). Figure 2 shows the groups: the {gNone.n} firms that
-        never mentioned AI earned {sgn(gNone.car)}% and the most exposed quintile {sgn(gQ5.car)}%, with
-        overlapping intervals. {nvdaEv && <>NVIDIA, the most AI-intensive large filer before the event, earned {sgn(nvdaEv.car)}% abnormal. It was the exception, not the pattern.</>}
+        On <em>market-adjusted</em> returns, a 1σ increase in pre-event exposure is worth{" "}
+        <Em>{sgn(event.regMkt.b)}pp</Em> (t = {event.regMkt.t}); on raw returns, {sgn(event.regRaw.b)}pp
+        (t = {event.regRaw.t}). On six-factor-adjusted returns it is {sgn(reg.car.b)}pp
+        (t = {mns(reg.car.t)}). The six-factor adjustment removes the result because in the first half of
+        2023 the growth and investment factors <em>were</em> the AI repricing — the same circularity §04
+        confronts. Industry fixed effects do the same thing for a different reason: the repricing hit
+        whole industries (semis, software), so absorbing industry means absorbs the effect. The placebo
+        window is flat ({sgn(reg.plc.b)}pp, t = {mns(reg.plc.t)}).
       </P>
       <P>
-        The null is informative, not an embarrassment for the measure, for two reasons. First, in late
-        2022 {event.shareZero}% of large filers had never used the words, and those who had were mostly
-        describing internal tools in risk-factor boilerplate. Disclosure measured intent, not revenue.
-        Second, the market's repricing was narrow: it bought the handful of firms selling compute and
-        models, not the broad population that talked about using them. This contrasts with labor-based
-        exposure measures such as Eisfeldt, Schubert and Zhang (2023), who find that firms whose
-        workforces were more exposed to generative AI outperformed after the release. Different
-        instruments measure different things. The practical implication follows directly: a
-        text-screened “AI basket” built in 2022 would have missed the trade. Text exposure became
-        discriminating only after the vocabulary diffused and firms started describing AI in their
-        products.
+        Three further cuts keep the claim honest. Splitting the margins, neither the mention dummy
+        ({sgn(event.regMargin.b)}pp, t = {mns(event.regMargin.t)}) nor intensity among mentioners
+        ({sgn(event.regMargin.b_xint)}pp, t = {event.regMargin.t_xint}) is significant on six-factor returns.
+        Business-section exposure does no better than total exposure ({sgn(event.regB.b)}pp,
+        t = {mns(event.regB.t)}), so the section split, valuable in §04, does not rescue this test. And
+        because “the winners were a handful of names” is a claim about the tail rather than the mean, I
+        test the tail directly: the odds of landing in the top 5% of outcomes rise
+        {" "}{event.tail.or}× per σ of exposure (p = {event.tail.p}), and the 90th-percentile quantile
+        slope is {sgn(q90.b)}pp (t = {q90.t}) against {sgn(event.qreg["0.5"]!.b)}pp at the median.
+        Directionally right, statistically marginal.
       </P>
-      <Figure n={2} title="Abnormal return, Dec-2022 → Jun-2023, by pre-ChatGPT AI exposure" source={`${SEC}, ${YH}, ${KF}; ${CALC}. Six-factor (FF5 + momentum) betas from 156 weekly returns before the event; CAR = sum of weekly abnormal returns. Tags: bootstrap 95% CI · n.`}>
+      <Revised>
+        First draft: “pre-ChatGPT disclosure did not predict the repricing (−0.3pp per σ, t = −0.3).”
+        Corrected: disclosure predicted <em>raw and market-adjusted</em> abnormal returns
+        ({sgn(event.regMkt.b)}pp per σ, t = {event.regMkt.t}); it does not survive six-factor adjustment or
+        industry fixed effects, and the honest reading is that those controls absorb the event rather
+        than that the signal is empty. The safest statement remains the narrow one: pre-ChatGPT
+        disclosure intensity was a weak ex-ante signal, and a text screen built in 2022 would have been a
+        blunt instrument — as Eisfeldt, Schubert and Zhang (2023) find with labor-based exposure, what
+        “AI exposure” means depends entirely on the instrument.
+      </Revised>
+      <Figure n={2} title="Abnormal return, Dec-2022 → Jun-2023, by pre-ChatGPT AI exposure" source={`${SEC}, ${YH}, ${KF}; ${CALC}. Six-factor betas from 156 weekly returns before the event; bars are six-factor CARs, the conservative version. Tags: bootstrap 95% CI · n.`}>
         <BarH
           rows={event.groups.map((g) => ({ label: g.grp === "none" ? "no mention" : `${g.grp} (${g.expoLo}–${g.expoHi})`, value: g.car!, tag: `${ci(g.lo, g.hi)} · ${g.n}` }))}
           unit="%" decimals={1} labelWidth={112} tagWidth={120}
         />
       </Figure>
       <Table>
-        <Head><Th>Specification</Th><Th r>b (pp per σ)</Th><Th r>t (industry-clustered)</Th><Th r>R²</Th><Th r>n</Th></Head>
+        <Head><Th>Specification (dependent = CAR, Dec-22 → Jun-23)</Th><Th r>b (pp per σ)</Th><Th r>t</Th><Th r>R²</Th><Th r>n</Th></Head>
         <tbody>
           {([
-            ["CAR Dec-22 → Jun-23, industry FE", reg.car],
-            ["  — value-weighted (WLS by float)", reg.carVW],
-            ["  — no industry FE", reg.carNoFE],
-            ["CAR Dec-22 → Dec-24, industry FE", reg.car2],
-            ["  — value-weighted", reg.car2VW],
-            ["Placebo May-22 → Nov-22, industry FE", reg.plc],
-            ["  — value-weighted", reg.plcVW],
-          ] as const).map(([lab, v], i) => (
-            <tr key={i} className={`border-b border-rule ${i === 0 ? "bg-bg-sunken" : ""}`}>
+            ["Market-adjusted, no industry FE", event.regMkt, true],
+            ["Raw return, no industry FE", event.regRaw, true],
+            ["Six-factor-adjusted, no industry FE", reg.carNoFE, false],
+            ["Six-factor-adjusted, industry FE", reg.car, false],
+            ["  — value-weighted (WLS by float)", reg.carVW, false],
+            ["  — Business-section exposure only", event.regB, false],
+            ["  — mention dummy (extensive margin)", event.regMargin, false],
+            ["Placebo May-22 → Nov-22 (six-factor)", reg.plc, false],
+            ["Extended window to Dec-24 (six-factor)", reg.car2, false],
+          ] as const).map(([lab, v, lead], i) => (
+            <tr key={i} className={`border-b border-rule ${lead ? "bg-bg-sunken" : ""}`}>
               <td className="px-2 py-1 text-text">{lab}</td>
               <td className="px-2 py-1 text-right"><Num value={v.b} decimals={2} signed /></td>
               <td className="px-2 py-1 text-right"><T v={v.t} d={2} /></td>
@@ -390,47 +413,53 @@ export default function AICrowdingArticle({ meta }: { meta: ResearchMeta }) {
           ))}
         </tbody>
       </Table>
-      <Cap>Table 3. Cross-sectional regressions of abnormal returns on standardized pre-event exposure (eq. 2), controlling for log float value. Standard errors clustered by Fama-French 49 industry. Source: {SEC}, {YH}, {KF}; {CALC}.</Cap>
+      <Cap>Table 3. Cross-sectional regressions of abnormal returns on standardized pre-event exposure (eq. 2), controlling for log float value; standard errors clustered by FF49 industry. Shaded rows are the lead specifications: with the AI names inside the factors, factor-adjusting the dependent variable removes the event being measured. Source: {SEC}, {YH}, {KF}; {CALC}.</Cap>
 
       {/* 04 */}
-      <Section n="04" title="Is AI a factor? Mostly a bundle of old ones" />
+      <Section n="04" title="Is AI a factor? Not against the published ones — but they are no longer independent" />
       <P>
-        Each month-end, firms are sorted on exposure. The AI leg (H) is the top quintile among firms
-        with any mention, and the low-AI leg (L) is the bottom 30%, which includes all zero-mention firms.
-        Both legs are float-value-weighted and held for the next month. On average H holds {S.nH} names
-        and L {S.nL}. The early-sample asymmetry is by design: in 2016 almost no one mentioned AI. Three
-        variants guard against the obvious objections. An <em>equal-weighted</em> version removes the
-        megacap bet. A <em>within-industry</em> version sorts inside each Fama-French 49 industry and
-        aggregates by industry float, which removes the “long software, short banks” bet. A{" "}
-        <em>top-decile</em> version tests whether the purest exposure behaves differently.
+        The sort is explicit, because the tie structure matters enormously early in the sample:
+      </P>
+      <TeXBlock eq="3">{"H_t=\\{i:\\mathrm{AI}_{i,t}>Q_{80,t}\\ \\wedge\\ \\mathrm{AI}_{i,t}>0\\},\\qquad L_t=\\{i:\\mathrm{AI}_{i,t}\\le Q_{30,t}\\}"}</TeXBlock>
+      <P>
+        When 97% of firms score zero, <TeX>{"Q_{80,t}=0"}</TeX> and the “top quintile” is every firm with
+        any mention, while the “bottom 30%” is every firm with none. The legs therefore drift:{" "}
+        <Em>{c16.nH}</Em> long and {c16.nL} short in January 2016, {c19.nH}/{c19.nL} in January 2019,{" "}
+        {c22.nH}/{c22.nL} at ChatGPT, and {cNow.nH}/{cNow.nL} today. Early on this is “mentioners minus
+        the market”; today it is a genuine intensity sort. Any pre/post comparison inherits that
+        non-stationarity, which is one more reason the break tests below matter. Both legs are
+        float-value-weighted and held one month. Four variants guard the obvious objections: equal
+        weighting (kills the megacap bet), within-industry sorting (kills the sector bet), a top-decile
+        core, and a sort on <em>Business-section</em> intensity only.
       </P>
       <Figure n={3} title="Growth of $1: AI long-short portfolios vs the market, 2016–2026" source={`${SEC}, ${YH}, ${KF}; ${CALC}. Long-short returns exclude financing; market = CRSP value-weighted total return.`}>
         <LineChart
           height={290} decimalsLeft={2} yLabelLeft="growth of $1"
           series={[
             { name: "AI − low-AI (value-weighted)", color: AMBER, data: factor.curve.map((d) => ({ date: d.date, value: d.vw! })) },
+            { name: "Business-section sort", color: POS, data: factor.curve.filter((d) => d.biz != null).map((d) => ({ date: d.date, value: d.biz! })) },
             { name: "within-industry", color: CYAN, data: factor.curve.map((d) => ({ date: d.date, value: d.ind! })) },
-            { name: "equal-weighted", color: POS, data: factor.curve.map((d) => ({ date: d.date, value: d.ew! })) },
             { name: "market (CRSP VW)", color: DIM, data: factor.curve.map((d) => ({ date: d.date, value: d.mkt! })) },
           ]}
         />
       </Figure>
       <P>
-        Table 4 reports performance for the whole sample and split at ChatGPT. The headline portfolio
-        earned <Em>{sgn(aix.full!.mean)}%</Em> a year (t = {aix.full!.t}). Before ChatGPT it earned{" "}
-        {sgn(aix.pre!.mean)}% and after {sgn(aix.post!.mean)}% (t = {aix.post!.t}), with volatility
-        nearly doubling from {aix.pre!.vol}% to {aix.post!.vol}%. The within-industry version is the
-        cleanest post-ChatGPT performer: {sgn(inx.post!.mean)}% a year at {inx.post!.vol}% volatility, a
-        Sharpe ratio of {inx.post!.sharpe} (t = {inx.post!.t}), and a maximum drawdown of{" "}
-        {mns(inx.post!.maxdd)}%. Within every industry, the firms that talked most about AI did a little
-        better. The equal-weighted version tells the opposite story, {sgn(aew.post!.mean)}% after
-        ChatGPT: the average AI-intensive small or mid-cap did not share in the megacaps' re-rating. No
-        variant clears t = 2 over the full sample.
+        Table 4 reports performance. The headline portfolio earned {sgn(aix.full!.mean)}% a year
+        (t = {aix.full!.t}), {sgn(aix.post!.mean)}% after ChatGPT with volatility rising from{" "}
+        {aix.pre!.vol}% to {aix.post!.vol}%. The best-behaved variant is the one the section split made
+        possible: sorting on Business-section language alone earns <Em>{sgn(aixb.post!.mean)}%</Em> a
+        year post-ChatGPT at {aixb.post!.vol}% volatility (Sharpe {aixb.post!.sharpe}, maximum drawdown{" "}
+        {mns(aixb.post!.maxdd)}%). Firms that describe AI in their business beat firms that merely
+        disclose it. The equal-weighted version is the counterweight: {sgn(aew.post!.mean)}% after
+        ChatGPT. Its <em>pre</em>-ChatGPT alpha is the only conventionally significant one in the FF6
+        table ({sgn(sp.AIXew.pre!.alpha)}%/yr, t = {sp.AIXew.pre!.tA}), consistent with Babina, Fedyk, He
+        and Hodson (2024) on AI investment and firm growth in the pre-generative era — a result the first
+        draft passed over in silence.
       </P>
       <Table>
         <Head><Th>Portfolio</Th><Th r>mean, full</Th><Th r>vol</Th><Th r>Sharpe</Th><Th r>t</Th><Th r>max DD</Th><Th r>mean, pre</Th><Th r>mean, post</Th><Th r>Sharpe post</Th></Head>
         <tbody>
-          {[aix, aew, inx, a10, mkt].map((s) => (
+          {[aix, aixb, aew, inx, a10, mkt].map((s) => (
             <tr key={s.key} className={`border-b border-rule ${s.key === "AIX" ? "bg-bg-sunken" : ""} ${s.key === "Mkt-RF" ? "text-text-dim" : ""}`}>
               <td className="px-2 py-1 text-text">{s.label}</td>
               <td className="px-2 py-1 text-right"><Pct v={s.full!.mean} /></td>
@@ -445,35 +474,41 @@ export default function AICrowdingArticle({ meta }: { meta: ResearchMeta }) {
           ))}
         </tbody>
       </Table>
-      <Cap>Table 4. Monthly long-short returns, annualized; {S.factorStart} → {S.factorEnd} (n = {aix.full!.n}); pre = through Nov-2022 (n = {aix.pre!.n}), post = Dec-2022 onward (n = {aix.post!.n}). t = mean / standard error of monthly returns. Source: {SEC}, {YH}, {KF}; {CALC}.</Cap>
+      <Cap>Table 4. Monthly long-short returns, annualized; {S.factorStart} → {S.factorEnd} (n = {aix.full!.n}); pre = through Nov-2022 (n = {aix.pre!.n}), post = Dec-2022 onward (n = {aix.post!.n}). Source: {SEC}, {YH}, {KF}; {CALC}.</Cap>
       <P>
-        The spanning regressions settle the factor question:
+        Now the spanning question, and the correction that matters most. Against the published FF5 plus
+        momentum, six factors explain <Em>{sp.AIX.full!.r2}%</Em> of the long-short's monthly return
+        variation, rising to {sp.AIX.post!.r2}% after ChatGPT, with an insignificant alpha of{" "}
+        {sgn(sp.AIX.full!.alpha)}%/yr (t = {sp.AIX.full!.tA}). The first draft read that as “AI is old
+        styles in new clothes.” But by 2026 the AI leg is {dCap.last}% of universe float value, so the
+        published factors are not independent of the thing being tested. Rebuilding four style factors
+        from <em>non-AI stocks only</em> — market, size, a price-to-sales value factor and momentum,
+        each computed inside the non-AI universe — the picture changes: R² falls to{" "}
+        <Em>{sp.exAI.full!.r2}%</Em> and alpha rises to <Em>{sgn(sp.exAI.full!.alpha)}%/yr</Em>
+        {" "}(t = {sp.exAI.full!.tA}), {sgn(sp.exAI.post!.alpha)}% post-ChatGPT
+        (t = {sp.exAI.post!.tA}). For the top-decile core it is {sgn(sp.exAI10.full!.alpha)}%
+        (t = {sp.exAI10.full!.tA}) and {sgn(sp.exAI10.post!.alpha)}% post (t = {sp.exAI10.post!.tA}).
       </P>
-      <TeXBlock eq="3">{"r^{\\mathrm{AI}}_{t}=\\alpha+\\beta_{m}\\mathrm{MKT}_t+\\beta_{s}\\mathrm{SMB}_t+\\beta_{h}\\mathrm{HML}_t+\\beta_{r}\\mathrm{RMW}_t+\\beta_{c}\\mathrm{CMA}_t+\\beta_{u}\\mathrm{UMD}_t+\\varepsilon_t"}</TeXBlock>
       <P>
-        The loadings form a coherent profile (Table 5). The AI leg is higher-beta ({sgn(sp.AIX.full!.b["Mkt-RF"])}),
-        larger (SMB {mns(sp.AIX.full!.b.SMB)}), growthier (HML {mns(sp.AIX.full!.b.HML)}), less profitable
-        on the Fama-French definition (RMW {mns(sp.AIX.full!.b.RMW)}) and, most strongly, invests
-        aggressively (CMA {mns(sp.AIX.full!.b.CMA)}, t = {mns(sp.AIX.full!.t.CMA)}). That last loading is
-        the capex boom showing up in a factor model. Together the six factors explain{" "}
-        <Em>{sp.AIX.full!.r2}%</Em> of the variance, rising to <Em>{sp.AIX.post!.r2}%</Em> after
-        ChatGPT: as AI became the market's story, it became <em>more</em> explainable by known styles,
-        not less. The alpha of {sgn(sp.AIX.full!.alpha)}%/yr (t = {sp.AIX.full!.tA}) is not
-        significant, and a post-ChatGPT alpha dummy is {sgn(brk.diff)}pp (t = {brk.t}). Whatever the AI
-        leg earned after November 2022, the factor model says it was paid for bearing growth, size,
-        beta and investment exposure that already existed. The top-decile version has the largest alpha,{" "}
-        {sgn(sp.AIX10.full!.alpha)}%/yr, at t = {sp.AIX10.full!.tA}, suggestive but short of
-        conventional significance on {sp.AIX10.full!.n} months.
+        Two further tests keep me from over-claiming in the other direction. Freezing the pre-ChatGPT
+        loadings and applying them to the post period leaves an out-of-sample alpha of{" "}
+        {sgn(oos.alpha)}%/yr (t = {oos.t}) — the frozen factor model prices the post period about as well
+        as the fitted one, which argues against a pure “AI became the factors” story. And the loadings
+        themselves did break: a joint Wald test on alpha and all six betas rejects stability
+        (χ² = {chow.stat}, {chow.df} df, p = <Em>{chow.p}</Em>), even though the alpha shift alone is{" "}
+        {sgn(brk.diff)}pp (t = {brk.t}) with a minimum detectable effect of {brk.mde}pp — that test could
+        not have found a break of any plausible size. So the correct sentence is “no detectable break in
+        alpha, and a clear one in loadings,” not “no structural break.”
       </P>
       <Table small>
         <Head><Th>Portfolio · period</Th><Th r>α %/yr</Th><Th r>t(α)</Th>{FAC.map((f) => <Th key={f} r>{f === "Mkt-RF" ? "MKT" : f === "MOM" ? "UMD" : f}</Th>)}<Th r>R²</Th></Head>
         <tbody>
-          {(["AIX", "AIXew", "IN", "AIX10"] as const).flatMap((k) =>
+          {(["AIX", "AIXB", "AIXew", "IN", "AIX10"] as const).flatMap((k) =>
             (["full", "pre", "post"] as const).map((per) => {
               const v = sp[k][per]!;
               return (
                 <tr key={k + per} className={`border-b border-rule ${per === "full" ? "bg-bg-sunken" : ""}`}>
-                  <td className="px-2 py-1 text-text">{per === "full" ? { AIX: "AI − low (VW)", AIXew: "AI − low (EW)", IN: "Within-industry", AIX10: "Top decile − low" }[k] : ""} <span className="text-text-faint">{per}</span></td>
+                  <td className="px-2 py-1 text-text">{per === "full" ? { AIX: "AI − low (VW)", AIXB: "Business-section sort", AIXew: "AI − low (EW)", IN: "Within-industry", AIX10: "Top decile − low" }[k] : ""} <span className="text-text-faint">{per}</span></td>
                   <td className="px-2 py-1 text-right"><Num value={v.alpha} decimals={1} signed /></td>
                   <td className="px-2 py-1 text-right"><T v={v.tA} d={2} /></td>
                   {FAC.map((f) => (
@@ -484,38 +519,89 @@ export default function AICrowdingArticle({ meta }: { meta: ResearchMeta }) {
               );
             }),
           )}
+          {(["exAI", "exAI10"] as const).flatMap((k) =>
+            (["full", "pre", "post"] as const).map((per) => {
+              const v = sp[k][per]!;
+              return (
+                <tr key={k + per} className="border-b border-rule">
+                  <td className="px-2 py-1 text-text">{per === "full" ? (k === "exAI" ? "vs ex-AI styles" : "vs ex-AI styles (top decile)") : ""} <span className="text-text-faint">{per}</span></td>
+                  <td className="px-2 py-1 text-right"><Num value={v.alpha} decimals={1} signed /></td>
+                  <td className="px-2 py-1 text-right"><T v={v.tA} d={2} /></td>
+                  {EXF.map((f) => (
+                    <td key={f} className={`px-2 py-1 text-right font-tabular ${Math.abs(v.t[f] ?? 0) >= 2 ? "text-text" : "text-text-faint"}`}>{sgn(v.b[f], 2)}</td>
+                  ))}
+                  <td className="px-2 py-1 text-right font-tabular text-text-faint" colSpan={2}>ex-AI factors</td>
+                  <td className="px-2 py-1 text-right font-tabular text-text">{v.r2}%</td>
+                </tr>
+              );
+            }),
+          )}
         </tbody>
       </Table>
-      <Cap>Table 5. Spanning regressions (eq. 3), monthly, Newey-West HAC (lag {S.hac}). Loadings in bold-equivalent (bright) when |t| ≥ 2. Factors: Fama-French five plus momentum (UMD). Source: {KF}, {SEC}, {YH}; {CALC}.</Cap>
+      <Cap>Table 5. Spanning regressions, monthly, Newey-West HAC (lag {S.hac}). Top block: published Fama-French five plus momentum. Bottom block: MKTx/SMBx/VALx/MOMx rebuilt from non-AI-leg stocks inside this universe (columns reuse the MKT/SMB/HML/RMW positions). Bright = |t| ≥ 2. Source: {KF}, {SEC}, {YH}; {CALC}.</Cap>
+      <P>
+        One loading deserves explanation rather than a shrug. The AI leg loads <em>negatively</em> on RMW
+        ({mns(sp.AIX.full!.b.RMW, 2)}), which looks absurd for a basket containing some of the most
+        profitable firms in the world. Two reasons: Fama-French operating profitability expenses R&D, so
+        research-heavy firms score poorly on it by construction; and the short leg is full of stable,
+        cash-generative, low-growth firms that score well. The CMA loading ({mns(sp.AIX.full!.b.CMA, 2)},
+        t = {mns(sp.AIX.full!.t.CMA)}) says the leg is tilted toward aggressive investment — asset growth
+        broadly, which includes acquisitions and working capital, not only the data-center capex it is
+        tempting to name.
+      </P>
+      <Revised>
+        First draft: “six factors explain 70% of the AI long-short, so AI is a bundle of old styles, with
+        no significant alpha.” Corrected: the published factors explain {sp.AIX.post!.r2}% of its monthly
+        return <em>variation</em> post-ChatGPT — which is not the same as “70% of the portfolio is old
+        styles” — and that number is partly circular, because the AI names are now inside those factors.
+        Against ex-AI styles the alpha is {sgn(sp.exAI.full!.alpha)}%/yr (t = {sp.exAI.full!.tA}). The
+        defensible claim is “insufficient evidence for a distinct, priced AI premium in{" "}
+        {aix.full!.n} months,” not “AI is not a factor.”
+      </Revised>
       <Takeaway>
-        An “AI factor” sleeve is, to about {Math.round(sp.AIX.post!.r2! / 10) * 10}%, a growth-beta-investment
-        tilt you can already buy and risk-manage with standard factors. Hedge those loadings before
-        calling any residual AI alpha. On this sample there is not enough residual to call it anything.
+        Hedge the styles you can name before calling anything AI alpha — but do not assume the standard
+        factor suite is a clean hedge, because a fifth of the market's cap now sits on the AI side of it.
+        The Business-section sort is the version worth tracking: same idea, better signal-to-noise
+        ({sgn(aixb.post!.mean)}%/yr post-ChatGPT, Sharpe {aixb.post!.sharpe}).
       </Takeaway>
 
       {/* 05 */}
-      <Section n="05" title="What the AI return was made of" />
+      <Section n="05" title="What the AI cohort's market-cap gain was made of" />
       <P>
-        A return is sales growth, a change in the multiple, and distributions. Fix the membership of both
-        legs at November 2022 and decompose each cohort's aggregate market value from then to{" "}
-        {crowding.asOf}, using split-consistent market capitalization and trailing annual revenue from
-        XBRL:
+        This section decomposes the change in <em>aggregate market capitalization</em> of a fixed cohort.
+        That is not a shareholder return: issuance, buybacks and acquisitions move it too, so the numbers
+        below describe where the market value went, not what an investor earned. With that label fixed,
+        two measurement problems from the first draft remain to be corrected. Revenue was the latest
+        <em> annual</em> figure, up to 18 months stale against a current price — which mechanically
+        reclassifies fundamental growth as re-rating, and does so hardest for the fastest-growing cohort.
+        And price-to-sales hides margin expansion, which is a fundamental. So: TTM revenue and TTM
+        operating income from quarterly XBRL (median staleness now <Em>{S.ttmLagDays} days</Em>,
+        coverage {S.ttmCoverage}% of universe firms), and a three-way split:
       </P>
-      <TeXBlock eq="4">{"\\Delta\\log \\textstyle\\sum_i \\mathrm{MV}_i=\\underbrace{\\Delta\\log \\textstyle\\sum_i \\mathrm{Sales}_i}_{\\text{fundamentals}}+\\underbrace{\\Delta\\log\\left(\\textstyle\\sum_i \\mathrm{MV}_i\\big/\\textstyle\\sum_i \\mathrm{Sales}_i\\right)}_{\\text{re-rating}}"}</TeXBlock>
+      <TeXBlock eq="4">{"\\Delta\\log \\textstyle\\sum_i \\mathrm{MV}_i=\\underbrace{\\Delta\\log \\textstyle\\sum_i \\mathrm{Sales}_i}_{\\text{sales growth}}+\\underbrace{\\Delta\\log\\frac{\\sum_i \\mathrm{OpInc}_i}{\\sum_i \\mathrm{Sales}_i}}_{\\text{margin}}+\\underbrace{\\Delta\\log\\frac{\\sum_i \\mathrm{MV}_i}{\\sum_i \\mathrm{OpInc}_i}}_{\\text{multiple}}"}</TeXBlock>
       <P>
-        The AI cohort's value rose <Em>{dH.cap} log points</Em>. Of that, {dH.sales} came from sales
-        and <Em>{dH.rerate}</Em> from a higher aggregate price-to-sales ratio, which went from{" "}
-        {dH.ps0}× to {dH.ps1}×. The low-AI cohort rose {dL.cap}: {dL.sales} from sales and{" "}
-        {dL.rerate} from re-rating. The AI cohort's excess, {exAI.toFixed(1)} log points, splits into{" "}
-        {exSales.toFixed(1)} of faster sales growth and <Em>{exRerate.toFixed(1)} of multiple
-        expansion</Em>. The concentration is as striking: five firms account for {dH.top5}% of the AI
-        cohort's dollar gain, against {dL.top5}% for the low-AI cohort. This is the same verdict the{" "}
-        <Link href="/research/2026-04-15-profit-dupont" className="text-link no-underline hover:opacity-80">DuPont piece</Link>{" "}
-        reached for the decade's large-cap winners, sharpened: the AI trade has so far been paid mostly in
-        multiple, by a few names.
+        The result reverses the first draft's headline. The AI cohort's market value rose{" "}
+        <Em>{sgn(dH.cap)} log points</Em> (firm-bootstrap CI {ci(dH.capLo, dH.capHi)}): {sgn(dH.sales)}{" "}
+        from sales, <Em>{sgn(dH.margin)} from margin</Em> (CI {ci(dH.marginLo, dH.marginHi)}) and{" "}
+        {sgn(dH.mult)} from a higher multiple on operating income (CI {ci(dH.multLo, dH.multHi)}).
+        Aggregate operating margin went from {dH.opm0}% to {dH.opm1}%. The low-AI cohort rose{" "}
+        {sgn(dL.cap)}, and — the number that settles it — its multiple expanded <em>more</em>{" "}
+        ({sgn(dL.mult)}) while its margin <em>fell</em> ({sgn(dL.margin)}). Relative to the low-AI leg,
+        the AI cohort's excess {sgn(exCap, 1)} log points decompose into {sgn(exSales, 1)} sales,{" "}
+        <Em>{sgn(exMargin, 1)} margin</Em> and {sgn(exMult, 1)} multiple. On this measure the AI
+        cohort's outperformance was earned by fundamentals, not by re-rating.
+      </P>
+      <P>
+        Two caveats keep the reversal from being over-read. The intervals are wide — the multiple term's
+        CI spans {ci(dH.multLo, dH.multHi)} — because a cohort aggregate is dominated by a few firms:
+        five names account for <Em>{dH.top5}%</Em> of the AI cohort's dollar gain (CI{" "}
+        {ci(dH.top5Lo, dH.top5Hi)}) against {dL.top5}% for the low-AI leg. And a shift-share split of the
+        aggregate price-to-sales ratio attributes {dH.within}% of its change to within-firm re-rating and
+        {" "}{dH.between}% to mix shift toward high-multiple names, so the aggregate is not merely a
+        composition artefact.
       </P>
       <Table>
-        <Head><Th>Cohort (fixed at Nov-2022)</Th><Th r>firms</Th><Th r>Δ log MV</Th><Th r>Δ log sales</Th><Th r>re-rating</Th><Th r>P/S then</Th><Th r>P/S now</Th><Th r>top-5 share of $ gain</Th></Head>
+        <Head><Th>Cohort (fixed at Nov-2022)</Th><Th r>firms</Th><Th r>Δ log MV</Th><Th r>sales</Th><Th r>margin</Th><Th r>multiple</Th><Th r>op margin then → now</Th><Th r>P/S</Th><Th r>P/OpInc</Th><Th r>top-5 share of $ gain</Th></Head>
         <tbody>
           {decomp.map((d) => (
             <tr key={d.leg} className="border-b border-rule">
@@ -523,50 +609,71 @@ export default function AICrowdingArticle({ meta }: { meta: ResearchMeta }) {
               <td className="px-2 py-1 text-right font-tabular text-text-faint">{d.n}</td>
               <td className="px-2 py-1 text-right font-tabular text-text">{sgn(d.cap)}</td>
               <td className="px-2 py-1 text-right font-tabular text-text-dim">{sgn(d.sales)}</td>
-              <td className="px-2 py-1 text-right font-tabular text-text">{sgn(d.rerate)}</td>
-              <td className="px-2 py-1 text-right font-tabular text-text-dim">{d.ps0}×</td>
-              <td className="px-2 py-1 text-right font-tabular text-text">{d.ps1}×</td>
-              <td className="px-2 py-1 text-right font-tabular text-text-dim">{d.top5}%</td>
+              <td className="px-2 py-1 text-right font-tabular text-text">{sgn(d.margin)}</td>
+              <td className="px-2 py-1 text-right font-tabular text-text">{sgn(d.mult)}</td>
+              <td className="px-2 py-1 text-right font-tabular text-text-dim">{d.opm0}% → {d.opm1}%</td>
+              <td className="px-2 py-1 text-right font-tabular text-text-dim">{d.ps0}× → {d.ps1}×</td>
+              <td className="px-2 py-1 text-right font-tabular text-text-dim">{d.pe0}× → {d.pe1}×</td>
+              <td className="px-2 py-1 text-right font-tabular text-text">{d.top5}% {ci(d.top5Lo, d.top5Hi)}</td>
             </tr>
           ))}
           <tr className="border-b border-rule bg-bg-sunken">
             <td className="px-2 py-1 text-text-dim">AI minus low-AI</td>
             <td />
-            <td className="px-2 py-1 text-right font-tabular text-text">{sgn(exAI, 1)}</td>
+            <td className="px-2 py-1 text-right font-tabular text-text">{sgn(exCap, 1)}</td>
             <td className="px-2 py-1 text-right font-tabular text-text-dim">{sgn(exSales, 1)}</td>
-            <td className="px-2 py-1 text-right font-tabular text-text">{sgn(exRerate, 1)}</td>
-            <td colSpan={3} />
+            <td className="px-2 py-1 text-right font-tabular text-text">{sgn(exMargin, 1)}</td>
+            <td className="px-2 py-1 text-right font-tabular text-text">{sgn(exMult, 1)}</td>
+            <td colSpan={4} />
           </tr>
         </tbody>
       </Table>
-      <Cap>Table 6. Aggregate log decomposition (eq. 4), in log points ×100, Nov-2022 → {crowding.asOf}; firms with valid market value and revenue at both ends. Market value = unadjusted price × cover-page shares; revenue = latest annual XBRL revenue available 90 days after fiscal year-end. Excludes dividends and buybacks. Source: {SEC}, {YH}; {CALC}.</Cap>
+      <Cap>Table 6. Aggregate log decomposition (eq. 4), log points ×100, Nov-2022 → {crowding.asOf}; cohort fixed at Nov-2022, firms with valid market value, TTM revenue and positive TTM operating income at both ends. Market value = unadjusted price × cover-page shares. Intervals: firm bootstrap (2,000 resamples). This is a market-capitalization decomposition, not a return decomposition: it excludes dividends and is affected by issuance and buybacks. Source: {SEC}, {YH}; {CALC}.</Cap>
+      <Revised>
+        First draft: “the AI cohort's value rose 68.8 log points: 28.2 from sales and 40.6 from a higher
+        price-to-sales multiple — 59% re-rating.” That used the latest <em>annual</em> revenue against a
+        current price and a multiple that hides margins. On TTM fundamentals the same price-to-sales
+        framing would now read {sgn(dH.rerate_ps)} of {sgn(dH.cap)}; separating margin puts the true
+        multiple term at {sgn(dH.mult)}, and the AI cohort's excess gain over the low-AI leg becomes
+        mostly margin and sales. The first draft's most quotable sentence was wrong.
+      </Revised>
 
       {/* 06 */}
-      <Section n="06" title="Is it a crowd? Four gauges, one pattern" />
+      <Section n="06" title="Is it a crowd? Concentration, comovement — and which valuation you pick" />
       <P>
-        The comovement gauge follows Lou and Polk. At each month-end, take the prior 52 weekly returns
-        of every universe stock, strip the six Fama-French factors, and average the pairwise
-        correlations of the residuals within a group. Two design choices matter. Only pairs from{" "}
-        <em>different</em> industries are averaged, so industry news cannot masquerade as crowding.
-        And each group is compared with a size-matched benchmark: for every AI-leg stock, a non-AI stock
-        from the same float-value decile, averaged over ten random draws. That matters because megacaps
-        comove with each other for reasons unrelated to AI:
+        Four gauges, each against an explicit benchmark. Comovement follows Lou and Polk: at each
+        month-end, strip six factors from 52 weeks of returns and average the pairwise residual
+        correlations inside a group, using only pairs from <em>different</em> industries so industry news
+        cannot masquerade as crowding, and differencing against a benchmark matched on float-cap decile:
       </P>
-      <TeXBlock eq="5">{"\\mathrm{CoAI}_t=\\overline{\\rho}\\big(e_i,e_j\\big)_{\\substack{i,j\\in H_t\\\\ \\mathrm{ind}(i)\\ne \\mathrm{ind}(j)}}-\\overline{\\rho}\\big(e_i,e_j\\big)_{\\substack{i,j\\in B_t\\\\ \\mathrm{ind}(i)\\ne \\mathrm{ind}(j)}},\\qquad e_i=r_i-r_f-\\hat\\beta_i' f"}</TeXBlock>
+      <TeXBlock eq="5">{"\\mathrm{CoAI}_t=\\overline{\\rho}\\big(e_i,e_j\\big)_{\\substack{i,j\\in C_t\\\\ \\mathrm{ind}(i)\\ne \\mathrm{ind}(j)}}-\\overline{\\rho}\\big(e_i,e_j\\big)_{\\substack{i,j\\in B_t\\\\ \\mathrm{ind}(i)\\ne \\mathrm{ind}(j)}},\\qquad e_i=r_i-r_f-\\hat\\beta_i' f"}</TeXBlock>
       <P>
-        The other gauges are blunter. The <em>valuation spread</em> is the median log price-to-sales of
-        the AI leg minus that of the low-AI leg, raw and after subtracting each firm's industry median.{" "}
-        <em>Concentration</em> is the AI leg's share of universe float value and the top-10 AI names'
-        share. <em>Run-up</em> is the factor's trailing 24-month return and <em>factor volatility</em> its
-        trailing 26-week volatility. Each is standardized in real time (expanding window, 24-month
-        burn-in), and a pre-specified composite averages four of them: comovement, industry-adjusted
-        valuation, concentration and run-up.
+        Start with valuation, where the first draft contradicted itself. The median AI firm's
+        industry-adjusted price-to-sales spread is {sgn(dValI.last, 2)} log points
+        ({ordinal(dValI.pct)} percentile) — unremarkable. The <em>float-weighted</em> spread is{" "}
+        <Em>{sgn(dValVW.last, 2)}</Em> ({ordinal(dValVW.pct)} percentile) and the aggregate spread{" "}
+        {sgn(dValAgg.last, 2)} ({ordinal(dValAgg.pct)}). Both are right; they answer different
+        questions. Since the portfolio being tested is cap-weighted, the cap-weighted number is the
+        relevant one for crowding, and the sharper sentence is: <em>the typical AI firm is not expensive
+        relative to its industry; the AI book is, because the expense is concentrated in the
+        megacap core.</em> That also reconciles §05, where the aggregate multiple rose while the median
+        firm did not re-rate.
+      </P>
+      <P>
+        Concentration needs its own foil, because US megacap concentration is not by itself an AI fact.
+        The AI leg holds <Em>{dCap.last}%</Em> of universe float value against {dCap.pre}% before
+        ChatGPT, and the ten largest AI names hold {dTop.last}%. But the ten largest firms in the
+        universe — AI or not — hold {dTopU.last}%, so the AI-specific increment is the difference, not
+        the level: essentially, most of the market's top 10 <em>are</em> the AI leg. The effective number
+        of names in the AI leg (1/HHI) is <Em>{dEffN.last}</Em>, against {dEffN.pre} pre-ChatGPT. Read
+        honestly, this gauge says the AI trade inherits the market's concentration rather than creating
+        it — the direct test is holdings overlap from 13F filings, which is the pre-specified next step.
       </P>
       <Table>
         <Head><Th>Gauge</Th><Th r>{crowding.asOf}</Th><Th r>1y ago</Th><Th r>pre-ChatGPT avg</Th><Th r>z (real-time)</Th><Th r>percentile</Th></Head>
         <tbody>
           {crowding.dash.map((d) => {
-            const dec = d.unit === "ρ" ? 3 : d.unit === "log" || d.unit === "z" ? 2 : d.unit === "%" && d.key === "runup" ? 0 : 1;
+            const dec = d.unit === "ρ" ? 3 : d.unit === "log" || d.unit === "z" ? 2 : d.unit === "n" ? 0 : d.key === "runup" ? 0 : 1;
             const suf = d.unit === "%" ? "%" : "";
             const sub = d.label.startsWith("  ");
             return (
@@ -582,29 +689,50 @@ export default function AICrowdingArticle({ meta }: { meta: ResearchMeta }) {
           })}
         </tbody>
       </Table>
-      <Cap>Table 7. Crowding dashboard as of {crowding.asOf}. ρ = mean pairwise correlation of weekly six-factor residuals, 52-week window, cross-industry pairs only. Percentile vs the gauge's own 2016–2026 history; red z = crowded side. Valuation coverage {crowding.valCov}% of universe firms. Source: {SEC}, {YH}, {KF}; {CALC}.</Cap>
+      <Cap>Table 7. Crowding dashboard as of {crowding.asOf}. ρ = mean pairwise correlation of weekly six-factor residuals, 52-week window, cross-industry pairs only. z is expanding-window (real-time, so it uses only data through each month); the percentile is against the full 2016–2026 history — the two conventions differ, which is why a 95th-percentile reading can carry z ≈ 1.2 for a trending series. Valuation coverage {crowding.valCov}% of universe firms. Source: {SEC}, {YH}, {KF}; {CALC}.</Cap>
       <P>
-        Read the table from the top. On the broad AI leg there is <em>no</em> excess comovement: its
-        cross-industry residual correlation is {fx(dCoH.last, 3)} against {fx(dCoB.last, 3)} for size-matched peers
-        (excess {sgn(dEx.last, 3)}, {ordinal(dEx.pct)} percentile). With market-model residuals the excess
-        is actually negative ({fx(dEx1.last, 3)}), because the non-AI benchmark shares value and cyclical
-        exposures that the six-factor model removes. The broad AI leg, some 200 names from software to
-        retail, does not trade as a bloc. That is consistent with §04: its commonality lives in known
-        styles.
+        Now the gauge at a genuine extreme. On the broad AI leg there is <em>no</em> excess comovement
+        ({sgn(dEx.last, 3)}, {ordinal(dEx.pct)} percentile): 200 names spanning software to retail do not
+        trade as a bloc. The top-decile core does. Its cross-industry residual correlation is{" "}
+        {fx(dCoT.last, 3)} against {fx(dCoT.last! - dExT.last!, 3)} for size-matched peers, an excess of{" "}
+        <Em>{sgn(dExT.last, 3)}</Em> — the sample high. The referee's objection is the obvious one: the
+        core is {core.shareTech}% tech ({coreInds.slice(0, 4).map(([k, v]) => `${v} ${ind(k)}`).join(", ")}),
+        and software, IT services, semis and hardware are economic neighbours, so a common
+        AI-disruption headline would produce this signature with no crowded ownership at all. Three
+        tests, and the result survives all three. Matching the benchmark on <em>tech membership</em> as
+        well as size raises the excess to <Em>{sgn(dExTech.last, 3)}</Em>. Adding a tech-sector factor to
+        the residualization raises it to {sgn(dExFac.last, 3)}. And the Forbes-Rigobon adjustment for
+        correlations estimated in a high-volatility window leaves {fx(lastSeries.excessT_fr, 3)}.
       </P>
       <P>
-        The <em>core</em> is different. The top-decile names ({core.n} stocks; {coreInds.slice(0, 4).map(([k, v]) => `${v} ${ind(k)}`).join(", ")})
-        had residual comovement indistinguishable from their size-matched peers for a decade, then
-        diverged in the spring of 2026. The current reading, <Em>{sgn(dExT.last)}</Em> (core{" "}
-        {dCoT.last} vs benchmark {(dCoT.last! - dExT.last!).toFixed(3)}), is the highest in the sample,
-        z = {dExT.z}. A week-block bootstrap of the latest 52-week window puts its 95% interval at{" "}
-        <Em>{ci(core.lo, core.hi)}</Em>, clear of zero. Over the same six months the core rose{" "}
-        {sgn(core.ret6)}% value-weighted ({sgn(core.ret6ew)}% equal-weighted), so this is a joint
-        rally, not a joint liquidation. Two cautions. This gauge was added after the broad-leg result, as
-        a robustness cut, so it carries a mild data-snooping discount. And a single spike is a state,
-        not a forecast; §07 is the corrective.
+        The honest qualifier is about the <em>choice of cutoff</em>, not the estimate. The top decile was
+        chosen after the broad leg showed nothing, so its bootstrap interval understates the real
+        uncertainty. Table 8 therefore reports a pre-specified grid: the excess is{" "}
+        <Em>{sgn(th5.exc, 3)}</Em> at the top 5% (t = {th5.t}), {sgn(th10.exc, 3)} at 10%
+        (t = {th10.t}), {sgn(core.thresh.find((t) => t.pct === 15)!.exc, 3)} at 15% and{" "}
+        {sgn(th20.exc, 3)} at 20% (t = {th20.t}). A monotone gradient in exposure concentration, not a
+        knife-edge at one cutoff, and the maximum t across the grid is {core.maxT} at the top{" "}
+        {core.maxPct}%. Over the same six months the core rose {sgn(core.ret6)}% value-weighted, so this
+        is a joint rally, not a joint liquidation.
       </P>
-      <Figure n={4} title="Cross-industry residual comovement: the AI core vs its size-matched benchmark" source={`${SEC}, ${YH}, ${KF}; ${CALC}. Mean pairwise correlation of 52-week six-factor residuals, cross-industry pairs. Benchmark = size-decile-matched non-core stocks, 10 draws.`}>
+      <Table>
+        <Head><Th>Core cutoff (top % by exposure)</Th><Th r>names</Th><Th r>excess ρ, size-matched</Th><Th r>95% CI</Th><Th r>t</Th><Th r>excess ρ, size+tech-matched</Th><Th r>t</Th></Head>
+        <tbody>
+          {core.thresh.map((t) => (
+            <tr key={t.pct} className={`border-b border-rule ${t.pct === 10 ? "bg-bg-sunken" : ""}`}>
+              <td className="px-2 py-1 text-text">top {t.pct}%</td>
+              <td className="px-2 py-1 text-right font-tabular text-text-faint">{t.n}</td>
+              <td className="px-2 py-1 text-right font-tabular text-text">{sgn(t.exc, 3)}</td>
+              <td className="px-2 py-1 text-right font-tabular text-text-dim">{ci(t.lo, t.hi)}</td>
+              <td className="px-2 py-1 text-right"><T v={t.t} d={2} /></td>
+              <td className="px-2 py-1 text-right font-tabular text-text">{sgn(t.excTech, 3)}</td>
+              <td className="px-2 py-1 text-right"><T v={t.tTech} d={2} /></td>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+      <Cap>Table 8. Excess cross-industry residual comovement of the AI core at four pre-specified cutoffs, latest 52-week window. CIs and t's from a 4-week block bootstrap over weeks (400 resamples), which covers sampling noise inside the window but not the choice of cutoff — hence the grid. Benchmarks are drawn from non-core stocks matched on float-cap decile, and in the last columns on tech-industry membership as well (10 draws). Source: {SEC}, {YH}, {KF}; {CALC}.</Cap>
+      <Figure n={4} title="Cross-industry residual comovement: the AI core vs its matched benchmark" source={`${SEC}, ${YH}, ${KF}; ${CALC}. Mean pairwise correlation of 52-week six-factor residuals, cross-industry pairs. Benchmark = size-decile-matched non-core stocks (10 draws).`}>
         <LineChart
           height={270} decimalsLeft={3} yLabelLeft="mean pairwise ρ" zeroLine
           series={[
@@ -614,138 +742,151 @@ export default function AICrowdingArticle({ meta }: { meta: ResearchMeta }) {
           ]}
         />
       </Figure>
-      <P>
-        Concentration is the least ambiguous gauge. The AI leg holds <Em>{dCap.last}%</Em> of universe
-        float value, against a pre-ChatGPT average of {dCap.pre}% ({ordinal(dCap.pct)} percentile), and
-        the ten largest AI names alone hold <Em>{dTop.last}%</Em> ({ordinal(dTop.pct)} percentile).
-        Factor volatility is at its sample high, <Em>{dVol.last}%</Em> annualized against{" "}
-        {dVol.pre}% before ChatGPT (z = {dVol.z}). Valuation is where the popular story breaks. The raw
-        spread is {dVal.last} log points, <em>below</em> its pre-ChatGPT average of {dVal.pre} and at its{" "}
-        {ordinal(dVal.pct)} percentile. Industry-adjusted, it is {dValI.last} ({ordinal(dValI.pct)}{" "}
-        percentile). Part of that compression is composition: as disclosure diffused, the AI leg
-        absorbed cheaper retailers, banks and industrials. But it is also the §05 result read the other
-        way round. The megacaps' re-rating pulled the aggregate multiple up while the median AI firm
-        stayed close to its industry. The composite sits at {sgn(dCr.last)}σ ({ordinal(dCr.pct)}{" "}
-        percentile), elevated but not extreme. Only one of its four pre-specified legs, concentration,
-        is extended. The composite uses the broad-leg comovement gauge, not the core, and the run-up leg
-        has cooled.
-      </P>
-      <Figure n={5} title="Concentration and factor volatility" source={`${SEC}, ${YH}; ${CALC}. Left: AI-leg share of universe float value. Right: annualized volatility of weekly AI long-short returns, trailing 26 weeks.`}>
+      <Figure n={5} title="Concentration: the AI leg against the market's own top ten" source={`${SEC}, ${YH}; ${CALC}. Left: shares of universe float value. Right: annualized volatility of weekly AI long-short returns, trailing 26 weeks.`}>
         <LineChart
-          height={260} decimalsLeft={0} decimalsRight={0} yLabelLeft="AI-leg share of float (%)" yLabelRight="factor vol (%)"
+          height={260} decimalsLeft={0} decimalsRight={0} yLabelLeft="share of universe float (%)" yLabelRight="factor vol (%)"
           series={[
-            { name: "AI-leg share of universe (%)", color: AMBER, axis: "left", data: crowding.series.filter((d) => d.capH != null).map((d) => ({ date: d.date, value: d.capH! * 100 })) },
+            { name: "AI leg (%)", color: AMBER, axis: "left", data: crowding.series.filter((d) => d.capH != null).map((d) => ({ date: d.date, value: d.capH! * 100 })) },
+            { name: "top-10 universe names (%)", color: DIM, axis: "left", data: crowding.series.filter((d) => d.top10U != null).map((d) => ({ date: d.date, value: d.top10U! * 100 })) },
             { name: "top-10 AI names (%)", color: POS, axis: "left", data: crowding.series.filter((d) => d.top10 != null).map((d) => ({ date: d.date, value: d.top10! * 100 })) },
             { name: "factor vol, 26w (%)", color: CYAN, axis: "right", data: crowding.series.filter((d) => d.fvol != null).map((d) => ({ date: d.date, value: d.fvol! * 100 })) },
           ]}
         />
       </Figure>
+      <P>
+        The composite averages four real-time z-scores — comovement, industry-adjusted median valuation,
+        concentration and run-up. Because those legs are negatively correlated (appendix Table 13), their
+        mean has a standard deviation of only {S.crowdRawSd}, so the first draft's “+0.3σ” was
+        mislabelled; re-standardized, the composite reads {sgn(dCr.last, 2)}σ ({ordinal(dCr.pct)}{" "}
+        percentile). Swapping the float-weighted valuation leg in gives {sgn(dCrVW.last, 2)}σ
+        ({ordinal(dCrVW.pct)}). Either way the composite is unremarkable, and it is the least useful
+        object on this page: its legs disagree by construction, and the two that matter — concentration
+        and core comovement — are clearer read separately.
+      </P>
       <Takeaway>
-        Two portfolios can both be “long AI” and hold different risks. A market-cap AI sleeve is a
-        concentration and volatility problem: {dTop.last}% of the universe in ten names, at record
-        factor vol. A top-decile AI core now also carries a comovement problem, the Lou-Polk signature
-        of crowded ownership. Size both for the joint-exit scenario, not for the average valuation,
-        which is not the binding constraint.
+        The binding constraints are the cap-weighted multiple, an effective breadth of about{" "}
+        {dEffN.last} names, record factor volatility ({dVol.last}%), and a core that has started moving
+        together. Stress tests should assume the core's correlation goes to one on the way down rather
+        than to its 52-week average — and should not take comfort from the median AI firm's ordinary
+        multiple, because the median firm is not what a cap-weighted sleeve owns.
       </Takeaway>
 
       {/* 07 */}
-      <Section n="07" title="Does crowding predict? Not in 127 months, and here is why that is not surprising" />
+      <Section n="07" title="Does crowding predict? Not once the null is built properly" />
       <P>
-        The test is the standard predictive regression. Forward 3-, 6- and 12-month factor returns, the
-        forward 12-month maximum drawdown, and forward 6-month factor volatility are each regressed on
-        each gauge, standardized over the full sample. Overlapping forward windows make Newey-West
-        t-statistics unreliable when the effective sample is only <TeX>{"n/h"}</TeX>, and the regressors
-        are persistent, which is Stambaugh's (1999) bias. So every slope also gets a circular block
-        bootstrap (block = 2h) of the (x, y) pairs, and the p-values are Bonferroni-adjusted over the
-        25-cell grid. The last column is the minimum detectable effect: the slope the sample could
-        detect with 80% power.
+        Forward 3-, 6- and 12-month factor returns, the forward 12-month maximum drawdown and forward
+        12-month volatility, each regressed on each standardized gauge. Two things make the naive version
+        misleading, and the first draft only handled one. Overlapping windows leave about{" "}
+        <TeX>{"n/h"}</TeX> independent observations. And — Stambaugh (1999) — a persistent regressor
+        whose innovations correlate with contemporaneous returns biases the slope; for a <em>trailing
+        run-up</em> that bias is negative, which manufactures exactly the reversal the first draft
+        reported as its most consistent pattern. So p-values now come from a null bootstrap that
+        reproduces both: the gauge is simulated from its own AR(1) with block-resampled innovations
+        paired to the return innovations, under <TeX>{"\\beta=0"}</TeX>. Romano-Wolf step-down then
+        controls family-wise error across the grid, exploiting the dependence that made Bonferroni
+        absurdly conservative.
       </P>
       <Table small>
-        <Head><Th>Gauge</Th><Th>Forward outcome</Th><Th r>β (pp/σ)</Th><Th r>HAC t</Th><Th r>boot 95% CI</Th><Th r>p</Th><Th r>Bonf. p</Th><Th r>MDE</Th><Th r>n eff</Th></Head>
+        <Head><Th>Gauge</Th><Th>Forward outcome</Th><Th r>β (pp/σ)</Th><Th r>HAC t</Th><Th r>p (null boot)</Th><Th r>p (Romano-Wolf)</Th><Th r>MDE</Th><Th r>n eff</Th></Head>
         <tbody>
           {predict.map((p) => (
-            <tr key={p.x + p.y} className={`border-b border-rule ${p.x === "crowdFS" ? "bg-bg-sunken" : ""}`}>
+            <tr key={p.x + p.y} className={`border-b border-rule ${p.x === "runup" && p.y === "r12" ? "bg-bg-sunken" : ""}`}>
               <td className="px-2 py-1 text-text">{p.y === "r3" ? PRED_X[p.x] : ""}</td>
               <td className="px-2 py-1 text-text-dim">{p.ylab}</td>
               <td className="px-2 py-1 text-right"><Num value={p.b} decimals={2} signed /></td>
               <td className="px-2 py-1 text-right"><T v={p.t} d={2} /></td>
-              <td className={`px-2 py-1 text-right font-tabular ${p.lo != null && p.hi != null && p.lo * p.hi > 0 ? "text-text" : "text-text-faint"}`}>{ci(p.lo, p.hi)}</td>
-              <td className="px-2 py-1 text-right font-tabular text-text-dim">{p.p}</td>
-              <td className={`px-2 py-1 text-right font-tabular ${p.pBonf != null && p.pBonf < 0.05 ? "text-text" : "text-text-faint"}`}>{p.pBonf}</td>
+              <td className={`px-2 py-1 text-right font-tabular ${p.p != null && p.p < 0.05 ? "text-text" : "text-text-faint"}`}>{p.p}</td>
+              <td className={`px-2 py-1 text-right font-tabular ${p.pRW != null && p.pRW < 0.05 ? "text-text" : "text-text-faint"}`}>{p.pRW}</td>
               <td className="px-2 py-1 text-right font-tabular text-text-faint">{p.mde}</td>
               <td className="px-2 py-1 text-right font-tabular text-text-faint">{p.neff}</td>
             </tr>
           ))}
         </tbody>
       </Table>
-      <Cap>Table 8. Predictive regressions of forward AI-factor outcomes on standardized crowding gauges, {S.factorStart} → {S.factorEnd}. Returns and drawdowns in pp per 1σ of the gauge (a drawdown coefficient &lt; 0 = deeper drawdowns); volatility in points. HAC lag = horizon. Bootstrap: 2,000 circular-block resamples. MDE = 2.8 × HAC SE. Source: {SEC}, {YH}, {KF}; {CALC}.</Cap>
+      <Cap>Table 9. Predictive regressions of forward AI-factor outcomes on standardized crowding gauges, {S.factorStart} → {S.factorEnd}. Returns and drawdowns in pp per 1σ (a drawdown coefficient &lt; 0 = deeper drawdowns); volatility in points. HAC lag = horizon. p from {S.nullBoot?.toLocaleString()} draws of a Stambaugh-style null (AR(1) gauge, block-resampled innovations paired to return innovations, β = 0); Romano-Wolf step-down across all {predict.length} cells. MDE = 2.8 × HAC standard error. Source: {SEC}, {YH}, {KF}; {CALC}.</Cap>
       <P>
-        The most consistent pattern is <em>reversal after run-ups</em>. A 1σ higher trailing run-up is
-        followed by {sgn(pRun6.b)}pp over six months and <Em>{sgn(pRun12.b)}pp over twelve</Em>{" "}
-        (bootstrap CI {ci(pRun12.lo, pRun12.hi)}), and by deeper drawdowns ({sgn(pRunDD.b)}pp, CI{" "}
-        {ci(pRunDD.lo, pRunDD.hi)}). Concentration predicts higher forward factor volatility{" "}
-        ({sgn(pCap6.b)} points, CI {ci(pCap6.lo, pCap6.hi)}) and deeper drawdowns ({sgn(pCapDD.b)}pp). The
-        composite points the same way at twelve months ({sgn(pCr12.b)}pp, CI {ci(pCr12.lo, pCr12.hi)}).
-        All of these have the sign crowding theory predicts. <em>None survives the multiple-testing
-        adjustment</em>: the smallest raw bootstrap p in the grid is {minP}, and Bonferroni over 25 cells
-        leaves it at {minBonf}, short of 0.05. That smallest-p cell, broad-leg comovement predicting <em>lower</em> factor
-        volatility, has the wrong sign for a crowding story, a reminder of what 25 tests on one short
-        sample produce. At the 12-month horizon the sample has about {pRun12.neff} independent observations,
-        and the detectable effect is {Math.min(...mdeR12).toFixed(1)}–{Math.max(...mdeR12).toFixed(1)}pp
-        per σ. Only a very large crowding effect could show up here, which is why the next section goes
-        looking for more data rather than more significance.
+        The run-up reversal does not survive its own null. The point estimate is unchanged —
+        {sgn(pRun12.b)}pp per σ at twelve months, HAC t = {pRun12.t}, which in the first draft carried a
+        pairs-bootstrap p of 0.02 — but against a null that reproduces Stambaugh bias its p is{" "}
+        <Em>{pRun12.p}</Em>. A persistent trailing-return regressor produces slopes that size routinely
+        when nothing is there. The strongest surviving single-test cell is{" "}
+        {PRED_X[bestCell.x]!.toLowerCase()} predicting {bestCell.ylab} (p = {bestCell.p}), and after
+        Romano-Wolf the smallest family-wise p in the whole grid is <Em>{S.predMinRW}</Em>. With
+        about {pRun12.neff} independent observations at the twelve-month horizon and detectable effects
+        of {Math.min(...mdeR12).toFixed(1)}–{Math.max(...mdeR12).toFixed(1)}pp per σ, this sample cannot
+        answer the question. That is not a finding about crowding; it is a finding about the sample, and
+        it is why §08 goes looking for more data instead of more p-values.
       </P>
+      <Revised>
+        First draft: “the most consistent pattern is reversal after run-ups (−6.5pp per σ, bootstrap CI
+        excluding zero), suggestive but not surviving Bonferroni.” Corrected: the pattern is what the
+        null itself generates (p = {pRun12.p}). The negative sign was mostly econometrics, not crowding.
+      </Revised>
 
       {/* 08 */}
       <Section n="08" title="A century of run-ups: what happens after an industry doubles" />
       <P>
-        The Fama-French 49 value-weighted industry portfolios run from {gsy.start} to {gsy.end}. They
-        are built from CRSP and include every firm that ever listed, including the dot-com failures a
-        Yahoo sample cannot see. Following Greenwood, Shleifer and You, a <em>run-up</em> is a
-        trailing 24-month industry return above a threshold. I require it both raw and net of the
-        market, so that recoveries from market-wide crashes (1932–33, 2009–11) do not qualify, and I
-        require at least ten firms in the industry. An episode starts at the first qualifying month
-        with no episode in that industry in the prior 24 months. A <em>crash</em> is a fall of 40% or
-        more below the episode-month level at any point in the next 24 months. Because run-ups cluster
-        in time (August 2000 alone contributes several industries), all intervals resample calendar
-        years, not episodes.
+        The Fama-French 49 value-weighted industry portfolios run from {gsy.start} to {gsy.end}, built
+        from CRSP, including every firm that ever listed. The first draft got the experiment wrong in a
+        way that mattered. Following Greenwood, Shleifer and You, a run-up is a two-year industry return
+        above 100% <em>together with</em> a five-year return above 50% — the long-horizon filter is what
+        keeps rebounds from a market-wide crash out — and a <em>crash</em> is a 40% drawdown from the{" "}
+        <em>running peak</em> within the next two years. The first draft anchored the crash on the
+        episode-month price instead, which only fires if an industry surrenders the entire run-up and
+        more. An industry that rallies 60% and gives it all back is a 37% drawdown from peak and no crash
+        at all by the entry-anchored rule; that is precisely the case bubble studies care about.
       </P>
-      <Figure n={6} title="Probability of a 40% crash within two years, by run-up definition" source={`${KF}; ${CALC}. Tags: year-block bootstrap 95% CI · episodes. Unconditional rate across all industry-months with ≥10 firms: ${base.crash}%.`}>
+      <P>
+        Redone properly (Table 10): {tBase.n} episodes across {tBase.years} calendar years crash{" "}
+        <Em>{tBase.crash}%</Em> of the time (year-block bootstrap CI {tBase.lo}–{tBase.hi}). The
+        entry-anchored rule from the first draft gives {tBase.crashEnt}% on the same episodes — the
+        definition, not the data, produced that number. The right comparison is not the {base.crash}%
+        unconditional rate either: run-up industries are volatile industries, where a 40% drawdown is
+        mechanically likelier, so Table 10 also reports a base rate computed over industry-months in the{" "}
+        <em>same trailing-volatility deciles</em>, which is {tBase.volMatched}%. Against that foil, a
+        doubling roughly doubles crash risk rather than tripling it. Requiring the run-up also to beat
+        the market by 100% — the definition closest to a true bubble — gives <Em>{tNet.crash}%</Em>
+        {" "}(CI {tNet.lo}–{tNet.hi}, vol-matched {tNet.volMatched}%), and a 150% two-year run-up gives{" "}
+        {t150.crash}%. Excluding 1998–2001 leaves {tExDot.crash}%, so the dot-com cluster is not driving
+        it; the post-1945 subsample gives {t45.crash}%.
+      </P>
+      <P>
+        The mean is a different story, and it is the part of Greenwood-Shleifer-You that survives here
+        cleanly: forward 24-month returns net of the market after a baseline run-up average{" "}
+        {sgn(tBase.n24)}pp (CI {ci(tBase.nlo, tBase.nhi)}). Only the 150% bucket tilts negative
+        ({sgn(t150.n24)}pp, CI {ci(t150.nlo, t150.nhi)}). Doubling does not predict low average returns;
+        it predicts a fatter left tail.
+      </P>
+      <Revised>
+        First draft: “100%+ two-year run-ups, raw and net of market, crash 26% of the time against a 7.9%
+        base rate, 46% above 150%.” Two things were wrong. The crash was anchored on the entry price
+        rather than the running peak, which misses exactly the episodes bubble research is about, and
+        there was no five-year filter, so the episode set differed. And the unconditional base rate was
+        the wrong foil, because run-up industries are volatile industries. Corrected: {tBase.crash}%
+        against a volatility-matched {tBase.volMatched}%, rising to {tNet.crash}% when the run-up also
+        beats the market by 100%.
+      </Revised>
+      <Figure n={6} title="Probability of a 40% drawdown from peak within two years" source={`${KF}; ${CALC}. Tags: year-block bootstrap 95% CI · episodes. Unconditional rate across all industry-months with ≥10 firms: ${base.crash}%; volatility-matched rates in Table 10.`}>
         <BarH
           rows={[{ label: "unconditional", value: base.crash!, tag: `${base.n.toLocaleString()} ind-months`, faint: true },
-                 ...gsy.thr.map((t) => ({ label: t.label.replace(" (baseline)", "*"), value: t.crash!, tag: `${ci(t.lo, t.hi)} · ${t.n}` }))]}
-          unit="%" decimals={0} labelWidth={176} tagWidth={104} color={AMBER}
+                 ...gsy.thr.map((t) => ({ label: t.label.replace("GSY baseline: ", "").replace("  — also", "+ also"), value: t.crash!, tag: `${ci(t.lo, t.hi)} · ${t.n}` }))]}
+          unit="%" decimals={0} labelWidth={184} tagWidth={104} color={AMBER}
         />
       </Figure>
-      <P>
-        The results replicate the Greenwood-Shleifer-You pattern on an independent construction. The
-        baseline definition yields {t100.n} episodes over {t100.years} distinct years, and{" "}
-        <Em>{t100.crash}%</Em> of them crashed (CI {t100.lo}–{t100.hi}), against an unconditional{" "}
-        {base.crash}%. Above 150% the crash rate is <Em>{t150.crash}%</Em> (CI {t150.lo}–{t150.hi}); at
-        50% it is {t50.crash}%. The rate rises monotonically with run-up size. Restricting to the
-        post-war sample changes little ({t45.crash}% vs a post-war base of {base.crash45}%). Dropping
-        the net-of-market condition cuts the rate to {tRaw.crash}%, which is why that condition matters.
-        The <em>mean</em> is a different matter. Forward 24-month returns net of the market after a
-        100% run-up average {sgn(t100.n24)}pp with an interval of {ci(t100.nlo, t100.nhi)}: a coin flip
-        ({t100.pneg}% negative), not a reliable short. Only the 150% bucket is reliably negative{" "}
-        ({sgn(t150.n24)}pp, CI {ci(t150.nlo, t150.nhi)}). This is the industry-level cousin of the{" "}
-        <Link href="/research/2026-07-04-sentiment-tails" className="text-link no-underline hover:opacity-80">sentiment piece's</Link>{" "}
-        result: extremes buy variance, not a predictable mean.
-      </P>
-      <Table>
-        <Head><Th>Run-up definition</Th><Th r>episodes</Th><Th r>years</Th><Th r>P(crash)</Th><Th r>95% CI</Th><Th r>fwd 24m raw</Th><Th r>fwd 24m net</Th><Th r>net 95% CI</Th><Th r>% negative</Th></Head>
+      <Table small>
+        <Head><Th>Run-up definition</Th><Th r>episodes</Th><Th r>years</Th><Th r>P(crash), peak-anchored</Th><Th r>95% CI</Th><Th r>vol-matched base</Th><Th r>P(crash), entry-anchored</Th><Th r>fwd 24m net</Th><Th r>net 95% CI</Th></Head>
         <tbody>
           {gsy.thr.map((t) => (
-            <tr key={t.label} className={`border-b border-rule ${t.label.includes("baseline") ? "bg-bg-sunken" : ""}`}>
+            <tr key={t.label} className={`border-b border-rule ${t.label.startsWith("GSY") ? "bg-bg-sunken" : ""}`}>
               <td className="px-2 py-1 text-text">{t.label}</td>
               <td className="px-2 py-1 text-right font-tabular text-text-dim">{t.n}</td>
               <td className="px-2 py-1 text-right font-tabular text-text-faint">{t.years}</td>
               <td className="px-2 py-1 text-right font-tabular text-text">{t.crash}%</td>
               <td className="px-2 py-1 text-right font-tabular text-text-dim">{ci(t.lo, t.hi)}</td>
-              <td className="px-2 py-1 text-right"><Pct v={t.f24} /></td>
+              <td className="px-2 py-1 text-right font-tabular text-text-dim">{t.volMatched}%</td>
+              <td className="px-2 py-1 text-right font-tabular text-text-faint">{t.crashEnt}%</td>
               <td className="px-2 py-1 text-right"><Pct v={t.n24} /></td>
               <td className="px-2 py-1 text-right font-tabular text-text-dim">{ci(t.nlo, t.nhi)}</td>
-              <td className="px-2 py-1 text-right font-tabular text-text-dim">{t.pneg}%</td>
             </tr>
           ))}
           <tr className="border-b border-rule text-text-dim">
@@ -754,173 +895,165 @@ export default function AICrowdingArticle({ meta }: { meta: ResearchMeta }) {
             <td />
             <td className="px-2 py-1 text-right font-tabular">{base.crash}%</td>
             <td />
-            <td className="px-2 py-1 text-right"><Pct v={base.f24} /></td>
+            <td />
+            <td className="px-2 py-1 text-right font-tabular">{base.crashEnt}%</td>
             <td className="px-2 py-1 text-right"><Pct v={base.n24} /></td>
-            <td colSpan={2} />
+            <td />
           </tr>
         </tbody>
       </Table>
-      <Cap>Table 9. Fama-French 49 value-weighted industries, {gsy.start} → {gsy.end}. Crash = cumulative return ≤ −40% from the episode month at any point within 24 months. Intervals: calendar-year block bootstrap (4,000 resamples for crash rates, 2,000 for returns). Source: {KF}; {CALC}.</Cap>
+      <Cap>Table 10. Fama-French 49 value-weighted industries, {gsy.start} → {gsy.end}, industries with ≥10 firms. Peak-anchored crash = a 40% fall from the running peak within 24 months (Greenwood-Shleifer-You); entry-anchored = 40% below the episode-month level (the first draft's definition). Vol-matched base = crash rate among all industry-months in the same trailing-volatility deciles as the episodes. Intervals: calendar-year block bootstrap. Source: {KF}; {CALC}.</Cap>
       <P>
-        Can the <em>shape</em> of a run-up separate the ones that crash? Greenwood, Shleifer and You
-        find that volatility, turnover, issuance and the price path of the run-up help. With industry
-        portfolios I can measure four of the ingredients: run-up size, trailing realized volatility,
-        acceleration (the last 12 months' return minus the prior 12), and issuance, proxied by the change
-        in the number of listed firms. Table 10 is an honest null. Within the {multi.n} baseline episodes
-        ({multi.crashes} crashes), none of the characteristics separates crashes from survivors at
-        conventional levels, and a pre-specified four-variable logit that fits in sample (AUC{" "}
-        {multi.aucIn}) scores <Em>{multi.aucLoo}</Em> out of sample (leave-one-out), worse than a coin.
-        Without turnover, which needs stock-level CRSP data, industry portfolios can
-        tell you <em>how likely</em> a crash is given the run-up, but not <em>which</em> run-up crashes.
+        With the right crash definition, the <em>shape</em> of a run-up starts to matter — another
+        first-draft null that does not survive. Among the {multi.n} baseline episodes ({multi.crashes}{" "}
+        crashes), crashed episodes had larger run-ups ({runChar.crash} vs {runChar.nocrash},
+        permutation p = {runChar.p}) and higher trailing volatility ({volChar.crash} vs{" "}
+        {volChar.nocrash}, p = {volChar.p}); acceleration and issuance still do not separate them. A
+        pre-specified four-variable logit gives volatility t = {multi.t.vol} and run-up size
+        t = {multi.t.run}, with an in-sample AUC of {multi.aucIn} and — the test that matters —{" "}
+        <Em>{multi.aucLoo}</Em> leave-one-out. Modest, but better than the coin flip the first draft
+        reported under the entry-anchored definition.
       </P>
       <Table>
         <Head><Th>Characteristic at episode start</Th><Th r>crashed</Th><Th r>did not</Th><Th r>perm. p</Th><Th r>odds ratio / σ</Th><Th r>logit p (yr-clustered)</Th></Head>
         <tbody>
           {gsy.chars.map((c) => (
-            <tr key={c.key} className="border-b border-rule">
+            <tr key={c.key} className={`border-b border-rule ${["run", "vol"].includes(c.key) ? "bg-bg-sunken" : ""}`}>
               <td className="px-2 py-1 text-text">{c.label}</td>
               <td className="px-2 py-1 text-right"><Num value={c.crash} decimals={2} signed /></td>
               <td className="px-2 py-1 text-right"><Num value={c.nocrash} decimals={2} signed /></td>
-              <td className="px-2 py-1 text-right font-tabular text-text-dim">{c.p}</td>
+              <td className={`px-2 py-1 text-right font-tabular ${c.p != null && c.p < 0.05 ? "text-text" : "text-text-dim"}`}>{c.p}</td>
               <td className="px-2 py-1 text-right font-tabular text-text">{c.or}</td>
               <td className="px-2 py-1 text-right font-tabular text-text-dim">{c.lp}</td>
             </tr>
           ))}
         </tbody>
       </Table>
-      <Cap>Table 10. Baseline episodes (100% raw and net). Means by outcome; decimal units (1.82 = 182%). Permutation p from 5,000 label shuffles. Multivariate logit (size, volatility, acceleration, issuance): in-sample AUC {multi.aucIn}, leave-one-out AUC {multi.aucLoo}. Source: {KF}; {CALC}.</Cap>
+      <Cap>Table 11. Baseline episodes (100% two-year + 50% five-year). Means by outcome in decimals (1.27 = 127%). Permutation p from 5,000 label shuffles. Four-variable logit (run-up, volatility, acceleration, issuance): in-sample AUC {multi.aucIn}, leave-one-out {multi.aucLoo}. Turnover and firm age, two of the attributes Greenwood-Shleifer-You use, need stock-level CRSP data and are not replicated here. Source: {KF}; {CALC}.</Cap>
       <P>
-        Now place today's AI-linked industries in that distribution (Figure 7, Table 11). Semiconductors
-        (“Chips”, {chips.share}% of CRSP market value) reached a <Em>{chips.peak36}%</Em> two-year run-up
-        within the last three years, {chips.peakNet36}% net of the market, a hair short of the baseline
-        episode definition. The trailing run-up has since cooled to {chips.run}%. Computer Software
-        peaked at {softw.peak36}% raw ({softw.peakNet36}% net) and is now {sgn(softw.run)}%. The
-        industry inside a qualifying episode <em>today</em> is Computers (“Hardw”): {hardw.run}% raw
-        and {hardw.net}% net over 24 months, accelerating ({sgn(hardw.accel)}pp), with the episode
-        dated {openEp.find((e) => e.ind === "Hardw")?.date}. Its base rate from Table 9 is roughly{" "}
-        {t100.crash}% for a 40% crash within two years, about {Math.round(t100.crash! / base.crash!)}×
-        the unconditional rate. Precious metals ({now("Gold").run}% raw) and construction are the other
-        live or recent episodes, and neither is an AI trade. The dot-com precedent is sobering on the
-        tail and uninformative on timing: of the {dot.length} baseline episodes that started in
-        1999–2000, {dotCrash} crashed. Software's episode, dated to March 1999, lost{" "}
-        {Math.abs(aiNamed.find((e) => e.ind === "Softw" && e.date.startsWith("1999"))?.f24 ?? 0)}% over its
-        window without breaching the crash line, while semiconductors' December 1999 episode fell{" "}
-        {Math.abs(aiNamed.find((e) => e.ind === "Chips" && e.date.startsWith("1999"))?.trough ?? 0)}% at
-        the trough.
+        Where does today's AI complex sit? Semiconductors ({chips.share}% of CRSP market value) peaked at
+        a <Em>{chips.peak36}%</Em> two-year run-up within the last three years, {chips.peakNet36}% net of
+        the market, and the June-2024 episode has since returned {sgn(chips24.f24)}% with a peak-to-trough
+        drawdown of {mns(chips24.dd)}% — a qualifying episode that did not crash. The trailing run-up has
+        cooled to {chips.run}%. Computer Software peaked at {softw.peak36}% and is now {sgn(softw.run)}%.
+        The industry inside a live episode today is Computers: <Em>{hardw.run}% raw</Em>, {hardw.net}%
+        net, accelerating ({sgn(hardw.accel)}pp), dated {hardwEp?.date}, {hardwEp?.months} months in.
+        Its fitted crash probability from the Table 11 logit is {hardw.p}%, against the {tBase.crash}%
+        unconditional episode rate — a number to hold loosely given an AUC of {multi.aucLoo}. Treat the
+        Computers reading with care for a second reason: at {hardw.share}% of market value it is a small
+        portfolio whose membership depends on CRSP's SIC assignment of the largest hardware names, so it
+        is a thinner signal than the semiconductor one it is often conflated with. The
+        dot-com precedent is the reason to care about definitions: Software's December-1998 episode fell{" "}
+        {mns(softwEp.dd)}% from its peak (a crash) while ending the window only {mns(softwEp.f24)}% lower
+        (not a crash by the entry-anchored rule), and semiconductors' 1999 episode fell{" "}
+        {mns(chipsEp.dd)}% from peak.
       </P>
-      <Figure n={7} title="Trailing 24-month industry return today: the run-up league table" source={`${KF}; ${CALC}. As of ${gsy.end}. Tags: net of market · peak 24m run-up within the last 36 months. Baseline episode threshold: 100% raw AND 100% net.`}>
+      <Figure n={7} title="Trailing 24-month industry return today: the run-up league table" source={`${KF}; ${CALC}. As of ${gsy.end}. Tags: net of market · peak 24m run-up within the last 36 months.`}>
         <BarH
           rows={gsy.now.slice(0, 12).map((x) => ({ label: ind(x.ind), value: x.run!, tag: `net ${sgn(x.net)} · pk ${x.peak36}` }))}
           unit="%" decimals={0} labelWidth={176} tagWidth={120} color={CYAN}
         />
       </Figure>
-      <Table>
-        <Head><Th>Industry (FF49)</Th><Th r>mkt share</Th><Th r>24m raw</Th><Th r>24m net</Th><Th r>peak raw, 36m</Th><Th r>peak net, 36m</Th><Th r>vol</Th><Th r>accel.</Th><Th r>rel. B/M</Th></Head>
-        <tbody>
-          {["Chips", "Hardw", "Softw", "BusSv", "ElcEq", "Util", "Rtail", "Autos"].map((k) => {
-            const x = now(k);
-            if (!x) return null;
-            return (
-              <tr key={k} className={`border-b border-rule ${k === "Hardw" ? "bg-bg-sunken" : ""}`}>
-                <td className="px-2 py-1 text-text">{ind(k)}</td>
-                <td className="px-2 py-1 text-right font-tabular text-text-dim">{x.share}%</td>
-                <td className="px-2 py-1 text-right"><Pct v={x.run} d={0} /></td>
-                <td className="px-2 py-1 text-right"><Pct v={x.net} d={0} /></td>
-                <td className="px-2 py-1 text-right font-tabular text-text">{fx(x.peak36, 0)}%</td>
-                <td className="px-2 py-1 text-right font-tabular text-text">{fx(x.peakNet36, 0)}%</td>
-                <td className="px-2 py-1 text-right font-tabular text-text-dim">{x.vol}%</td>
-                <td className="px-2 py-1 text-right font-tabular text-text-dim">{sgn(x.accel)}</td>
-                <td className="px-2 py-1 text-right"><Num value={x.relbm} decimals={2} signed /></td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </Table>
-      <Cap>Table 11. AI-linked industries as of {gsy.end} (industries ranked by firm-level AI exposure: {gsy.aiInds.map(ind).join(", ")}; plus the power and electrical-equipment trade). Vol = trailing 12-month realized; accel. = last 12m minus prior 12m return (pp); rel. B/M = log book-to-market minus the cross-industry median (negative = expensive). Source: {KF}, {SEC}; {CALC}.</Cap>
       <Table small>
-        <Head><Th>Episode</Th><Th r>start</Th><Th r>run-up</Th><Th r>vol</Th><Th r>accel.</Th><Th r>Δ firms</Th><Th r>trough (24m)</Th><Th r>24m return</Th><Th r>crash?</Th></Head>
+        <Head><Th>Episode</Th><Th r>start</Th><Th r>2y run-up</Th><Th r>5y</Th><Th r>vol</Th><Th r>peak after</Th><Th r>max DD from peak</Th><Th r>24m return</Th><Th r>crash?</Th></Head>
         <tbody>
-          {[...aiNamed, ...openEp.filter((e) => !["Chips", "Softw", "Hardw"].includes(e.ind))].map((e) => (
+          {[...techEp, ...openEp.filter((e) => !["Chips", "Softw", "Hardw"].includes(e.ind))].map((e) => (
             <tr key={e.ind + e.date} className={`border-b border-rule ${e.open ? "bg-bg-sunken" : ""}`}>
               <td className="px-2 py-1 text-text">{ind(e.ind)}</td>
               <td className="px-2 py-1 text-right font-tabular text-text-dim">{e.date}</td>
               <td className="px-2 py-1 text-right font-tabular text-text">{e.run}%</td>
+              <td className="px-2 py-1 text-right font-tabular text-text-faint">{e.run5}%</td>
               <td className="px-2 py-1 text-right font-tabular text-text-dim">{e.vol}%</td>
-              <td className="px-2 py-1 text-right font-tabular text-text-dim">{sgn(e.accel)}</td>
-              <td className="px-2 py-1 text-right font-tabular text-text-dim">{sgn(e.issue)}%</td>
-              <td className="px-2 py-1 text-right"><Pct v={e.trough} d={0} /></td>
+              <td className="px-2 py-1 text-right font-tabular text-text-dim">{sgn(e.peak)}%</td>
+              <td className="px-2 py-1 text-right"><Pct v={e.dd} d={0} /></td>
               <td className="px-2 py-1 text-right">{e.open ? <span className="text-text-faint">{sgn(e.sofar)}% ({e.months}m, open)</span> : <Pct v={e.f24} d={0} />}</td>
-              <td className={`px-2 py-1 text-right ${e.crash ? "text-neg" : "text-text-faint"}`}>{e.open ? "—" : e.crash ? "yes" : "no"}</td>
+              <td className={`px-2 py-1 text-right ${e.crash ? "text-neg" : "text-text-faint"}`}>{e.open ? "open" : e.crash ? "yes" : "no"}</td>
             </tr>
           ))}
         </tbody>
       </Table>
-      <Cap>Table 12. Baseline episodes in technology industries since 1990, plus every episode still inside its 24-month window. Open episodes report the return and trough so far. Source: {KF}; {CALC}.</Cap>
+      <Cap>Table 12. Technology-industry episodes since 1990 (two-year filter, so live episodes appear) plus every episode still inside its 24-month window. Open episodes report the path so far. Source: {KF}; {CALC}.</Cap>
 
       {/* 09 */}
       <Section n="09" title="What this means for a portfolio" />
       <ul className="mb-4 ml-1 space-y-2 font-mono text-[13px] leading-[20px] text-text">
         {[
-          <><span className="text-accent">Screen on products, not vocabulary.</span> By 2026, {a26.share}% of large filers mention AI. A dictionary screen still ranks exposure usefully (Table 2 passes the smell test), but in 2022 it failed to pick the winners (§03). Pair text with revenue-segment or capex data before trusting a basket.</>,
-          <><span className="text-accent">Hedge the styles first.</span> Six standard factors explain {sp.AIX.post!.r2}% of the AI long-short after ChatGPT. A PM who is long AI and neutral on growth, investment and size has less AI exposure than they think. One who is not neutral is running a style book.</>,
-          <><span className="text-accent">Size for the joint exit.</span> The binding crowding constraints are concentration ({dTop.last}% in ten names), record factor volatility ({dVol.last}%), and a newly comoving core. Stress tests should assume the core's correlation goes to one on the way down, not the 52-week average.</>,
-          <><span className="text-accent">Treat run-ups as option-like, not as shorts.</span> A century of industry data says a doubled-and-outperforming industry crashes about {t100.crash}% of the time within two years, but its average forward return is statistically indistinguishable from the market's. That argues for buying convexity (puts, collars, or trimming into strength) rather than outright shorts, especially in Computers, today's live episode.</>,
-          <><span className="text-accent">Watch the core-comovement gauge.</span> It is the one crowding measure at a sample extreme with an interval clear of zero. It is also the youngest, so treat it as a state variable to monitor, not a timing signal.</>,
+          <><span className="text-accent">Screen on the Business section, not the whole filing.</span> By 2026 {a26.share}% of large filers mention AI, but only {a26.bShare}% of AI words sit in Item 1. The Business-section sort is the version with post-ChatGPT alpha ({sgn(sp.AIXB.post!.alpha)}%/yr, t = {sp.AIXB.post!.tA}); the all-text sort is half boilerplate.</>,
+          <><span className="text-accent">Do not assume the standard factor suite hedges this.</span> The published value and investment factors now contain the AI names; against styles rebuilt without them the long-short still earns {sgn(sp.exAI.full!.alpha)}%/yr. A “factor-neutral” AI book may be neutral to a benchmark that is itself long AI.</>,
+          <><span className="text-accent">Size for breadth, not for the median multiple.</span> Effective breadth is about {dEffN.last} names, factor vol is at its sample high, and the cap-weighted valuation spread ({sgn(dValVW.last, 2)}) is nothing like the median firm's ({sgn(dValI.last, 2)}).</>,
+          <><span className="text-accent">Treat the tail as fatter than base rates, and size accordingly.</span> A doubling raises the two-year crash probability to roughly {tBase.crash}% against {tBase.volMatched}% for equally volatile industries, without predictably lower average returns. That argues for lower risk budgets and explicit drawdown stress tests in the AI sleeve.</>,
+          <><span className="text-accent">Watch core comovement; it is the one gauge at an extreme.</span> Monitor it as a state variable — it survives tech-matching and a volatility adjustment — but it is young, exploratory, and not yet shown to predict anything.</>,
         ].map((t, i) => (
           <li key={i} className="flex gap-2"><span className="text-accent">—</span><span>{t}</span></li>
         ))}
       </ul>
+      <P>
+        One recommendation from the first draft is withdrawn. It advised buying convexity — puts and
+        collars — on the strength of the historical crash frequency. That does not follow. A physical
+        crash probability says nothing about whether options are cheap; high-run-up, high-volatility
+        industries carry elevated implied volatility and downside skew, and the market may already price
+        a {tBase.crash}% two-year crash probability, or more. Comparing physical and risk-neutral tail
+        probabilities needs option data this piece does not have. What the evidence supports is a
+        position-sizing and stress-testing conclusion, not an options trade.
+      </P>
 
       {/* 10 */}
       <Section n="10" title="Conclusion" />
       <P>
-        Is AI a factor or a crowd? On this evidence, it is not a factor in the strong sense: its returns
-        are mostly spanned by growth, size, investment, profitability and market exposure, its alpha is
-        insignificant, and the firms that talked about AI before ChatGPT were not the ones the market
-        rewarded. It is a crowd in a narrower sense than the phrase usually implies. The AI trade is
-        historically concentrated and historically volatile, and in 2026 its purest names began to
-        trade as a bloc beyond what size and style explain. It is not, on median price-to-sales,
-        unusually expensive relative to the rest of the market; its expense sits in a few megacaps whose
-        multiples did most of the work. The short sample cannot say whether any of this predicts the
-        factor's returns, and the text says so rather than dressing up a t-statistic. The long sample
-        can say what doubling does to an industry's distribution: it roughly triples the probability of
-        a 40% crash and leaves the mean alone. For an allocator that is the useful answer: the AI trade
-        has not been mispriced on average, but its downside tail is priced as if it were ordinary, and a
-        century of history says it is not.
+        The cleanest summary of this evidence is narrower than “AI is not a factor but is a crowd.” AI
+        exposure behaves like a <em>concentrated style complex</em>: its returns load heavily on growth,
+        size, investment and market beta, and those styles have themselves become partly synonymous with
+        the trade, so the published factor suite can neither price it cleanly nor hedge it cleanly.
+        There is not enough evidence for a distinct, priced AI premium in {aix.full!.n} months — but
+        against styles rebuilt without AI names the residual is larger than the first draft implied, and
+        the Business-section version of the signal is stronger still. The cohort's gains since ChatGPT
+        came more from sales and margins than from multiple expansion, which is the opposite of what the
+        first draft concluded from stale annual revenue. On crowding, the median AI firm is not
+        expensive, the cap-weighted book is, breadth is about {dEffN.last} names, and since spring 2026
+        the most AI-intensive names have begun to move together beyond what size, industry and a tech
+        factor explain — a Lou-Polk signature, though ownership data, not return correlations, is what
+        would prove it. Nothing here predicts the factor's returns, and the sample cannot: the one
+        pattern that looked predictive was a Stambaugh artefact. What a century of industry data adds is
+        the tail: doubling roughly doubles the probability of a 40% drawdown relative to equally volatile
+        industries, and leaves the mean alone. For an allocator that is the operative fact — not because
+        the AI trade is mispriced, but because its distribution is wider than the base rate implies, and
+        one industry in the complex is inside a live episode as I write.
       </P>
       <P>
-        Pre-registered follow-ups, so they are not fished for later: (i) replace the dictionary with
-        revenue-segment exposure from XBRL and repeat §03; (ii) add holdings-based crowding from the SEC
-        13F data sets (ownership breadth and overlap), the direct measure this piece approximates with
-        return correlations; (iii) re-test §07 in 2028, when the sample doubles.
+        Pre-specified and timestamped by this page's publication date, so later specification changes are
+        auditable: (i) replace the dictionary with revenue-segment exposure from XBRL and re-run §03;
+        (ii) add holdings-based crowding from the SEC 13F data sets — ownership breadth, overlap and
+        common institutional ownership — which is the direct measure this piece approximates with return
+        correlations; (iii) compare the §08 physical crash frequency with option-implied tail
+        probabilities, the missing half of the §09 argument; (iv) re-test §07 in 2028, when the sample
+        doubles.
       </P>
 
       {/* appendix */}
       <Section n="A" title="Data, method & limitations" />
       <div className="space-y-2 font-mono text-[11px] leading-[18px] text-text-dim">
-        <p><span className="text-text-faint">Sources.</span> SEC EDGAR: company-ticker-exchange map; submissions API (10-K filing index, SIC); {S.docs.toLocaleString()} 10-K primary documents filed 2015-01 → 2026-08 (median {S.medianWords.toLocaleString()} words); XBRL frames for dei:EntityPublicFloat, dei:EntityCommonStockSharesOutstanding and us-gaap revenue tags (Revenues, RevenueFromContractWithCustomerExcludingAssessedTax, SalesRevenueNet; the maximum per firm-year). Yahoo Finance: daily adjusted and split-adjusted closes plus split events for {S.tickersPriced.toLocaleString()} of {S.tickersWanted.toLocaleString()} tickers. Kenneth R. French Data Library (files built from the {gsy.end.replace("-", "")} CRSP database): FF5 and momentum (daily and monthly), FF3 monthly from 1926, 49 industry portfolios (daily and monthly returns, number of firms, average firm size, BE/ME), and SIC definitions.</p>
-        <p><span className="text-text-faint">Data validation.</span> The value-weighted return of the {S.nUniverse?.toLocaleString()}-stock universe correlates <span className="text-text">{S.valCorr}</span> with the CRSP value-weighted market (beta {S.valBeta}, tracking error {S.valTE}% a year, mean difference {sgn(S.valDiff)}% a year). That bounds the survivorship bias of a currently-listed universe at the value-weighted level. Floats: {S.floatVerifiedShare}% of observations verified against price × shares; {S.floatFixed} filings rescaled for an exact 1,000× tagging error; {S.floatDropped} failed verification and {S.floatUnverifiedDropped} unverifiable outliers were dropped. Monthly returns outside (−95%, +500%) and weekly outside (−90%, +300%) are treated as bad prints. Preferred-stock ticker lines are excluded.</p>
-        <p><span className="text-text-faint">Exposure.</span> Eq. (1). HTML tags, script/style blocks and the inline-XBRL header are removed before counting; exhibits (including Exhibit 13 annual reports) are not read. The dictionary is fixed ex ante and not tuned. 10-Ks under 10,000 words ({S.docsWrapper}) are excluded as wrappers. Supply-chain vocabulary (GPU, accelerated computing, data center, hyperscale) is counted separately and does not enter the score.</p>
-        <p><span className="text-text-faint">Portfolios.</span> Month-end sorts, next-month holding. H: exposure above the 80th percentile and positive; L: at or below the 30th percentile; top decile: above the 90th. Float value = cover-page float × (split-adjusted price now / at the float date). Within-industry: H and L within each FF49 industry with ≥ 5 universe firms, the industry spreads averaged by industry float. Weekly long-shorts reuse month-start weights.</p>
-        <p><span className="text-text-faint">Inference.</span> Spanning and predictive regressions: Newey-West (Bartlett) HAC, lag {S.hac} for monthly spanning and lag = horizon for predictive regressions. Predictive slopes add circular block bootstraps (block 2h, 2,000 resamples) and Bonferroni ×25. The event study clusters by FF49 industry; group intervals are iid bootstraps. Core comovement uses a 4-week block bootstrap over weeks (500 resamples). Run-up statistics use calendar-year block bootstraps. Crowding z-scores are expanding-window (24-month burn-in), so dashboard readings are real-time; predictive regressions standardize over the full sample, which is harmless for t-statistics.</p>
+        <p><span className="text-text-faint">Sources.</span> SEC EDGAR: company-ticker-exchange map; submissions API; {S.docs.toLocaleString()} 10-K primary documents filed 2015-01 → 2026-08 (median {S.medianWords.toLocaleString()} words), each also parsed into Item 1 and Item 1A ({S.secParsed}% parse rate); XBRL frames for dei:EntityPublicFloat, dei:EntityCommonStockSharesOutstanding, and quarterly/annual us-gaap revenue, operating income and net income. Revenue tags are taken in priority order (RevenueFromContractWithCustomerExcludingAssessedTax, then Revenues, then SalesRevenueNet) rather than by maximum, so gross and net definitions are not mixed. TTM series sum four quarters with a 60-day availability lag and impute a missing fourth quarter as annual minus the first three. Yahoo Finance: daily adjusted and split-adjusted closes plus split events for {S.tickersPriced.toLocaleString()} of {S.tickersWanted.toLocaleString()} tickers. Kenneth R. French Data Library ({gsy.end.replace("-", "")} CRSP build): FF5 and momentum (daily, monthly), FF3 from 1926, 49 industry portfolios (daily, monthly, firm counts, average size, BE/ME), SIC definitions.</p>
+        <p><span className="text-text-faint">Data validation.</span> The value-weighted return of the {S.nUniverse?.toLocaleString()}-stock universe correlates <span className="text-text">{S.valCorr}</span> with the CRSP value-weighted market (beta {S.valBeta}, tracking error {S.valTE}%/yr, mean difference {sgn(S.valDiff)}%/yr). Floats: {S.floatVerifiedShare}% verified against price × shares; {S.floatFixed} filings rescaled for an exact 1,000× tagging error; {S.floatDropped + S.floatUnverifiedDropped} dropped. Monthly returns outside (−95%, +500%) and weekly outside (−90%, +300%) are treated as bad prints; preferred-stock ticker lines excluded.</p>
+        <p><span className="text-text-faint">Portfolios.</span> Month-end sorts, next-month holding, float-value weights (cover-page float rolled forward on split-adjusted price). H and L as in eq. (3); top decile above the 90th percentile; the Business-section sort applies the same rule to Item 1 intensity; within-industry sorts inside each FF49 industry with ≥5 universe firms and aggregates by industry float. Ex-AI style factors (MKTx, SMBx, VALx, MOMx) are built from non-AI-leg stocks in the same universe: market excess, a median size split, a 30/70 price-to-sales value spread and a 12-1 momentum spread. They are proxies, not French-library replicas — there is no ex-AI RMW or CMA here, because operating profitability and asset growth are not in this data set.</p>
+        <p><span className="text-text-faint">Inference.</span> Spanning: Newey-West HAC (lag {S.hac}); joint break test by Wald on alpha plus six interaction terms. Predictive tests: HAC at the horizon, p-values from {S.nullBoot?.toLocaleString()} Stambaugh-style null simulations, Romano-Wolf step-down across {predict.length} cells. Event study clusters by FF49 industry; group intervals are iid bootstraps. Core comovement: 4-week block bootstrap over weeks (400 resamples) at four pre-specified cutoffs, with a Forbes-Rigobon volatility adjustment reported alongside. Run-up statistics: calendar-year block bootstraps, because episodes cluster in time. Crowding z-scores are expanding-window; percentiles are full-sample.</p>
         <div className="my-3 overflow-x-auto border border-rule">
           <table className="w-full border-collapse font-mono text-[10px]">
-            <Head><Th> </Th>{crowding.corr.labels.map((l) => <Th key={l} r>{PRED_X[l]}</Th>)}</Head>
+            <Head><Th> </Th>{crowding.corr.labels.map((l) => <Th key={l} r>{l}</Th>)}</Head>
             <tbody>
               {crowding.corr.m.map((row, i) => (
                 <tr key={i} className="border-b border-rule">
-                  <td className="px-2 py-1 text-text">{PRED_X[crowding.corr.labels[i]!]}</td>
+                  <td className="px-2 py-1 text-text">{crowding.corr.labels[i]}</td>
                   {row.map((v, j) => (
-                    <td key={j} className={`px-2 py-1 text-right font-tabular ${i === j ? "text-text-faint" : Math.abs(v) >= 0.3 ? "text-text" : "text-text-dim"}`}>{fx(v, 2)}</td>
+                    <td key={j} className={`px-2 py-1 text-right font-tabular ${i === j ? "text-text-faint" : Math.abs(v) >= 0.5 ? "text-text" : "text-text-dim"}`}>{fx(v, 2)}</td>
                   ))}
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        <p className="text-[10px] text-text-faint">Table 13. Correlation of the four composite legs (n = {crowding.corr.n} months). Concentration is negatively correlated with comovement and valuation, which is why the composite understates the concentration signal.</p>
-        <p><span className="text-text-faint">Limitations.</span> (1) Survivorship: firms delisted before 2026 are absent from the text universe. The CRSP comparison bounds the value-weighted bias, but equal-weighted and small-cap results are more exposed; §08 is built on survivorship-free data for this reason. (2) Foreign private issuers file 20-F, not 10-K, so TSMC and ASML are outside the universe. (3) SIC codes are sticky and self-reported. (4) A dictionary cannot distinguish selling AI from using it or fearing it; the §03 null is partly that. (5) Revenue tags vary across firms; valuation covers {crowding.valCov}% of universe firms. (6) The core-comovement gauge (Fig. 4) was added after the broad-leg result. (7) Industry portfolios lack turnover and firm-level detail, so two of the run-up attributes Greenwood-Shleifer-You use cannot be replicated here. Reproducible via <code className="text-text-dim">analysis/ai_crowding.py</code> (first run downloads about 22,000 filings from EDGAR; roughly an hour at the fair-access rate).</p>
-        <p><span className="text-text-faint">References.</span> Barberis, N., A. Shleifer &amp; J. Wurgler (2005), “Comovement,” <em>JFE</em>. Carhart, M. (1997), “On Persistence in Mutual Fund Performance,” <em>JF</em>. Eisfeldt, A., G. Schubert &amp; M. B. Zhang (2023), “Generative AI and Firm Values,” NBER WP 31222. Fama, E. &amp; K. French (2015), “A Five-Factor Asset Pricing Model,” <em>JFE</em>. Greenwood, R., A. Shleifer &amp; Y. You (2019), “Bubbles for Fama,” <em>JFE</em>. Lou, D. &amp; C. Polk (2022), “Comomentum: Inferring Arbitrage Activity from Return Correlations,” <em>RFS</em>. Loughran, T. &amp; B. McDonald (2011), “When Is a Liability Not a Liability? Textual Analysis, Dictionaries, and 10-Ks,” <em>JF</em>. Newey, W. &amp; K. West (1987), <em>Econometrica</em>. Stambaugh, R. (1999), “Predictive Regressions,” <em>JFE</em>. Stein, J. (2009), “Presidential Address: Sophisticated Investors and Market Efficiency,” <em>JF</em>.</p>
+        <p className="text-[10px] text-text-faint">Table 13. Correlation of the four composite legs (n = {crowding.corr.n} months). The strong negative correlations are why the equal-weight mean of the four z-scores has a standard deviation of only {S.crowdRawSd}, and why the composite is re-standardized before being quoted in σ.</p>
+        <p><span className="text-text-faint">Limitations.</span> (1) Survivorship. The text universe contains only firms listed today. The 0.998 CRSP correlation shows the aggregate value-weighted index is close to the real one, but it does <em>not</em> bound survivorship bias in characteristic-sorted long-shorts, which distort if failed firms sat systematically on one side of the signal; equal-weighted results are the most exposed. A CRSP-linked rebuild is the fix. (2) Foreign private issuers file 20-F, so TSMC and ASML are absent. (3) SIC codes are sticky and self-reported; Hoberg-Phillips text-based industries would be better. (4) The dictionary cannot separate selling AI from using or fearing it; the section split is a partial remedy, and exposure updates only annually. (5) Valuation covers {crowding.valCov}% of universe firms and price-to-sales is weakly comparable across banks, retailers and software even after industry adjustment. (6) The core-comovement cutoff was chosen after seeing the broad-leg result; Table 8's grid is the honest presentation. (7) Industry portfolios lack turnover and firm age. (8) Concentration measures market structure as much as AI crowding; holdings data is the right instrument. Reproducible via <code className="text-text-dim">analysis/ai_crowding.py</code> (first run downloads ~22,000 filings twice — once for totals, once for sections — at EDGAR's fair-access rate).</p>
+        <p><span className="text-text-faint">References.</span> Babina, T., A. Fedyk, A. He &amp; J. Hodson (2024), “Artificial Intelligence, Firm Growth, and Product Innovation,” <em>JFE</em>. Barberis, N., A. Shleifer &amp; J. Wurgler (2005), “Comovement,” <em>JFE</em>. Brown, G., T. Howard &amp; C. Lundblad (2022), “Crowded Trades and Tail Risk,” <em>RFS</em>. Carhart, M. (1997), <em>JF</em>. Cohen, L., C. Malloy &amp; Q. Nguyen (2020), “Lazy Prices,” <em>JF</em>. Eisfeldt, A., G. Schubert &amp; M. B. Zhang (2023), “Generative AI and Firm Values,” NBER WP 31222. Fama, E. &amp; K. French (2015), <em>JFE</em>. Forbes, K. &amp; R. Rigobon (2002), “No Contagion, Only Interdependence,” <em>JF</em>. Greenwood, R., A. Shleifer &amp; Y. You (2019), “Bubbles for Fama,” <em>JFE</em>. Hoberg, G. &amp; G. Phillips (2016), “Text-Based Network Industries,” <em>JPE</em>. Lou, D. &amp; C. Polk (2022), “Comomentum,” <em>RFS</em>. Loughran, T. &amp; B. McDonald (2011), <em>JF</em>. Newey, W. &amp; K. West (1987), <em>Econometrica</em>. Romano, J. &amp; M. Wolf (2005), “Stepwise Multiple Testing as Formalized Data Snooping,” <em>Econometrica</em>. Stambaugh, R. (1999), “Predictive Regressions,” <em>JFE</em>. Stein, J. (2009), <em>JF</em>.</p>
         <p className="pt-1 text-text-faint">This is research, not investment advice.</p>
       </div>
     </article>

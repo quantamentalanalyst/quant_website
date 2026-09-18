@@ -8,7 +8,7 @@ import { getAllResearch, getAllNotes } from "@/lib/content";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type Entry = { kind: "commit" | "content"; when: string; text: string; href?: string };
+type Entry = { kind: "commit" | "research" | "note"; when: string; text: string; href?: string };
 
 async function fetchGhEvents(handle: string): Promise<Entry[]> {
   if (!handle) return [];
@@ -37,7 +37,10 @@ async function fetchGhEvents(handle: string): Promise<Entry[]> {
         }
       }
     }
-    return entries.slice(0, 10);
+    // one line per distinct commit message: repeated pushes of the same
+    // message would otherwise fill the ticker with identical entries
+    const seen = new Set<string>();
+    return entries.filter((e) => !seen.has(e.text) && seen.add(e.text)).slice(0, 10);
   } catch {
     return [];
   }
@@ -47,13 +50,13 @@ async function fetchContent(): Promise<Entry[]> {
   const [research, notes] = await Promise.all([getAllResearch(), getAllNotes()]);
   return [
     ...research.slice(0, 4).map((r) => ({
-      kind: "content" as const,
+      kind: "research" as const,
       when: r.date,
       text: r.title,
       href: `/research/${r.slug}`,
     })),
     ...notes.slice(0, 4).map((n) => ({
-      kind: "content" as const,
+      kind: "note" as const,
       when: n.date,
       text: n.title,
       href: `/notes/${n.slug}`,

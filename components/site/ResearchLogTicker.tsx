@@ -1,7 +1,7 @@
 "use client";
 import useSWR from "swr";
 
-type Entry = { kind: "commit" | "content"; when: string; text: string; href?: string };
+type Entry = { kind: "commit" | "research" | "note"; when: string; text: string; href?: string };
 type Resp = { entries: Entry[] };
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -11,7 +11,8 @@ export default function ResearchLogTicker({ handle }: { handle: string }) {
     refreshInterval: 5 * 60_000,
     revalidateOnFocus: false,
   });
-  const entries = data?.entries ?? FALLBACK;
+  const entries = data?.entries ?? [];
+  if (entries.length === 0) return <div className="h-full flex-1" />;
 
   // The visible viewport is a flex row with overflow hidden; the inner track
   // contains entries duplicated for a seamless loop. We pause on hover.
@@ -24,9 +25,7 @@ export default function ResearchLogTicker({ handle }: { handle: string }) {
         {[...entries, ...entries].map((e, i) => (
           <span key={i} className="flex items-center gap-2">
             <span className="text-text-faint font-tabular">{e.when}</span>
-            <span className={e.kind === "commit" ? "text-data" : "text-accent"}>
-              {e.kind === "commit" ? "commit" : "note"}
-            </span>
+            <span className={e.kind === "commit" ? "text-data" : "text-accent"}>{e.kind}</span>
             <span className="text-text-dim">{e.text}</span>
             <span className="text-rule-strong">·</span>
           </span>
@@ -41,11 +40,3 @@ export default function ResearchLogTicker({ handle }: { handle: string }) {
     </div>
   );
 }
-
-const FALLBACK: Entry[] = [
-  { kind: "commit", when: "2026-05-21 14:02", text: "init scaffold" },
-  { kind: "content", when: "2026-05-18", text: "Cross-sectional momentum in EM small caps" },
-  { kind: "content", when: "2026-04-30", text: "Notes on Asness '24" },
-  { kind: "commit", when: "2026-04-20 09:11", text: "rebalance backtest engine" },
-  { kind: "content", when: "2026-04-12", text: "Vol-targeting is a leverage rule, not a signal" },
-];

@@ -113,7 +113,7 @@ export type Site = typeof site;
 //   3. localhost — local dev fallback.
 // Drives metadataBase so Open Graph / canonical / social-preview URLs are
 // absolute and correct in every environment.
-export const PRODUCTION_URL = "https://quantamentalanthony.com";
+export const PRODUCTION_URL = "https://anthonyhuangresearch.com";
 
 export function siteUrl(): string {
   if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;

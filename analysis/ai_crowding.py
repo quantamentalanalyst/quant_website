@@ -528,6 +528,17 @@ def analyze():
     cnt["ai"] = cnt[AI_SCORE].sum(axis=1)
     cnt["expo"] = np.where(cnt["words"] >= MIN_WORDS, 1e4 * cnt["ai"] / cnt["words"], np.nan)
     cnt["genai"] = cnt["generative_ai"] + cnt["llm"]
+    sec_path = CACHE / "tenk_sections.csv"
+    if sec_path.exists():
+        sec = pd.read_csv(sec_path).drop_duplicates("accn")
+        cnt = cnt.merge(sec, on="accn", how="left")
+        ok_s = cnt["ok"] == 1
+        cnt["expoB"] = np.where(ok_s & (cnt["b_words"] >= 1000), 1e4 * cnt["b_ai"] / cnt["b_words"], np.nan)
+        cnt["expoR"] = np.where(ok_s & (cnt["r_words"] >= 1000), 1e4 * cnt["r_ai"] / cnt["r_words"], np.nan)
+        summary["secParsed"] = r(float(ok_s.mean()) * 100, 1)
+    else:
+        cnt["expoB"] = cnt["expoR"] = np.nan
+        summary["secParsed"] = None
     summary["docs"] = int(len(cnt))
     summary["docsWrapper"] = int((cnt["words"] < MIN_WORDS).sum())
     summary["firmsText"] = int(cnt["cik"].nunique())
@@ -596,6 +607,11 @@ def analyze():
             "shareGen": r((g["genai"] > 0).mean() * 100, 1),
             "mean": r(g["expo"].mean(), 2), "median": r(g["expo"].median(), 2),
             "p90": r(g["expo"].quantile(0.9), 2),
+            "meanB": r(g["expoB"].mean(), 2), "meanR": r(g["expoR"].mean(), 2),
+            "shareB": r(float((g["expoB"] > 0).mean()) * 100, 1),
+            "shareR": r(float((g["expoR"] > 0).mean()) * 100, 1),
+            "bShare": r(float(g["b_ai"].sum() / max(g["b_ai"].sum() + g["r_ai"].sum(), 1)) * 100, 1)
+            if "b_ai" in g.columns else None,
         })
     (OUT / "adoption.json").write_text(json.dumps(adoption), encoding="utf-8")
     # term mix, first vs last full year
@@ -611,9 +627,9 @@ def analyze():
     mends = pd.DatetimeIndex([m.to_timestamp(how="end").normalize() for m in months])
     good_s = good.sort_values("filed")
     grid = pd.DataFrame([(d, c) for d in mends for c in F.index], columns=["date", "cik"])
-    st = pd.merge_asof(grid.sort_values("date"), good_s[["cik", "filed", "accn", "expo", "ai", "words",
-                                                         "genai", "float", "end", "gpu", "data_center",
-                                                         "accelerated_computing", "hyperscale"]],
+    st = pd.merge_asof(grid.sort_values("date"), good_s[["cik", "filed", "accn", "expo", "expoB", "expoR",
+                                                         "ai", "words", "genai", "float", "end", "gpu",
+                                                         "data_center", "accelerated_computing", "hyperscale"]],
                        left_on="date", right_on="filed", by="cik", direction="backward",
                        tolerance=pd.Timedelta(days=548))
     st = st.dropna(subset=["expo", "float", "end"])
@@ -647,7 +663,7 @@ def analyze():
     st = st[np.isfinite(st["fv"]) & (st["fv"] > 0)]
 
     # market cap and P/S for valuation (split-consistent: unadjusted close x cover shares)
-    shares, rev = xbrl_frames()
+    shares, _ = xbrl_frames()
     shares["end"] = pd.to_datetime(shares["end"])
     shares = shares[(shares["shares"] > 1e5) & (shares["shares"] < 5e10)].sort_values("end")
     st = st.sort_values("date")
@@ -681,14 +697,17 @@ def analyze():
     st = st[~bad_f & ~unver].copy()
     bad = ~((st["mcap"] >= 0.5 * st["fv"]) & (st["mcap"] <= 50 * st["fv"]))
     st.loc[bad, "mcap"] = np.nan
-    rev["end"] = pd.to_datetime(rev["end"])
-    rev = rev.groupby(["cik", "end"], as_index=False)["rev"].max()
-    rev["avail"] = rev["end"] + pd.Timedelta(days=90)
-    rev = rev[rev["rev"] > 1e7].sort_values("avail")
-    st = pd.merge_asof(st.sort_values("date"), rev[["cik", "avail", "rev"]], left_on="date",
-                       right_on="avail", by="cik", direction="backward", tolerance=pd.Timedelta(days=500))
+    q = xbrl_quarterly()
+    for kind, col in (("rev", "rev"), ("oi", "oi")):
+        t_ = ttm_panel(q, kind).rename(columns={"ttm": col, "avail": f"av_{col}"})
+        st = pd.merge_asof(st.sort_values("date"), t_, left_on="date", right_on=f"av_{col}",
+                           by="cik", direction="backward", tolerance=pd.Timedelta(days=200))
+    st.loc[st["rev"] <= 1e7, "rev"] = np.nan
     st["lps"] = np.log(st["mcap"] / st["rev"])
     st.loc[(st["lps"] < np.log(0.01)) | (st["lps"] > np.log(500)), "lps"] = np.nan
+    st["opm"] = st["oi"] / st["rev"]
+    summary["ttmCoverage"] = r(st["rev"].notna().mean() * 100, 1)
+    summary["ttmLagDays"] = r((st["date"] - st["av_rev"]).dt.days.median(), 0)
 
     # universe: top UNIVERSE_N by float value each month
     st["rank"] = st.groupby("m")["fv"].rank(ascending=False, method="first")
@@ -703,6 +722,11 @@ def analyze():
     U["leg"] = U.groupby("m", group_keys=False)[["expo"]].apply(legs)
     q90 = U.groupby("m")["expo"].transform(lambda x: x.quantile(0.9))
     U["top"] = (U["expo"] > q90) & (U["expo"] > 0)
+    qB80 = U.groupby("m")["expoB"].transform(lambda x: x.quantile(0.8))
+    qB30 = U.groupby("m")["expoB"].transform(lambda x: x.quantile(0.3))
+    U["legB"] = np.where((U["expoB"] > qB80) & (U["expoB"] > 0), "H",
+                         np.where(U["expoB"] <= qB30, "L", "M"))
+    U.loc[U["expoB"].isna(), "legB"] = "M"
     U["legI"] = "M"
     for (m, ind), g in U.groupby(["m", "ind"]):
         if len(g) >= 5:
@@ -710,6 +734,12 @@ def analyze():
     summary["universeMonths"] = int(U["m"].nunique())
 
     # ---------------------------------------------- 3. factor returns (monthly)
+    mom12 = (Am.shift(1) / Am.shift(12) - 1)          # 12-1 momentum
+    mom12.index = mom12.index.to_period("M")
+    st["mom"] = [mom12.at[m_, t_] if m_ in mom12.index and t_ in mom12.columns else np.nan
+                 for m_, t_ in zip(st["m"], st["tic"])]
+    U = U.join(st[["mom"]], how="left") if "mom" not in U.columns else U
+    fr_rf = ffm["RF"].to_dict()
     rows = []
     for m, g in U.groupby("m"):
         if m < M0 or m >= M1:
@@ -719,6 +749,24 @@ def analyze():
             return float(np.average(x["ret1"], weights=x["fv"])) if len(x) else np.nan
         H, L = gg[gg["leg"] == "H"], gg[gg["leg"] == "L"]
         T = gg[gg["top"]]
+        HB, LB = gg[gg["legB"] == "H"], gg[gg["legB"] == "L"]
+        # Style factors rebuilt from NON-AI stocks only. After 2022 the AI names
+        # are most of the big-growth corner of HML/CMA and a fifth of the market,
+        # so the published factors are not independent of the trade being tested.
+        nx = gg[gg["leg"] != "H"]
+        ex = {}
+        if len(nx) > 100:
+            ex["MKTx"] = vw(nx) - fr_rf.get(m + 1, np.nan)
+            med = nx["fv"].median()
+            ex["SMBx"] = nx.loc[nx["fv"] <= med, "ret1"].mean() - nx.loc[nx["fv"] > med, "ret1"].mean()
+            v = nx.dropna(subset=["lps"])
+            if len(v) > 50:
+                lo_, hi_ = v["lps"].quantile(0.3), v["lps"].quantile(0.7)
+                ex["VALx"] = vw(v[v["lps"] <= lo_]) - vw(v[v["lps"] >= hi_])
+            mo = nx.dropna(subset=["mom"])
+            if len(mo) > 50:
+                lo_, hi_ = mo["mom"].quantile(0.3), mo["mom"].quantile(0.7)
+                ex["MOMx"] = vw(mo[mo["mom"] >= hi_]) - vw(mo[mo["mom"] <= lo_])
         ind_rows = []
         for ind, gi in gg.groupby("ind"):
             h, l = gi[gi["legI"] == "H"], gi[gi["legI"] == "L"]
@@ -727,13 +775,14 @@ def analyze():
         rows.append({
             "m": m + 1, "H": vw(H), "L": vw(L), "Hew": H["ret1"].mean(), "Lew": L["ret1"].mean(),
             "IN": np.average([x for x, _ in ind_rows], weights=[w for _, w in ind_rows]) if ind_rows else np.nan,
-            "T": vw(T), "mkt": vw(gg), "nH": len(H), "nL": len(L), "nU": len(gg),
-            "capH": H["fv"].sum() / gg["fv"].sum(), "nInd": len(ind_rows),
+            "T": vw(T), "HB": vw(HB), "LB": vw(LB), "mkt": vw(gg), "nH": len(H), "nL": len(L), "nU": len(gg),
+            "capH": H["fv"].sum() / gg["fv"].sum(), "nInd": len(ind_rows), "nT": len(T), **ex,
         })
     fr = pd.DataFrame(rows).set_index("m")
     fr["AIX"] = fr["H"] - fr["L"]
     fr["AIXew"] = fr["Hew"] - fr["Lew"]
     fr["AIX10"] = fr["T"] - fr["L"]
+    fr["AIXB"] = fr["HB"] - fr["LB"]        # sorted on Item 1 (Business) intensity only
     fr = fr.join(ffm, how="left")
     fr = fr[fr["RF"].notna()]
     summary["factorStart"], summary["factorEnd"] = str(fr.index[0]), str(fr.index[-1])
@@ -753,6 +802,7 @@ def analyze():
     fstats = []
     for key, lab in (("AIX", "AI − low-AI, value-weighted"), ("AIXew", "AI − low-AI, equal-weighted"),
                      ("IN", "AI − low-AI, within-industry"), ("AIX10", "Top-decile AI − low-AI, value-weighted"),
+                     ("AIXB", "AI − low-AI, business-section text only"),
                      ("Mkt-RF", "Market excess (FF)")):
         row = {"key": key, "label": lab}
         for nm, msk in (("full", np.ones(len(fr), bool)), ("pre", pre), ("post", post)):
@@ -769,18 +819,54 @@ def analyze():
                 "n": int(f.nobs), "b": {k: r(f.params[i + 1], 2) for i, k in enumerate(FAC)},
                 "t": {k: r(f.tvalues[i + 1], 1) for i, k in enumerate(FAC)}}
     spanning = {k: {nm: span(k, msk) for nm, msk in (("full", np.ones(len(fr), bool)), ("pre", pre), ("post", post))}
-                for k in ("AIX", "AIXew", "IN", "AIX10")}
+                for k in ("AIX", "AIXew", "IN", "AIX10", "AIXB")}
+
+    # (a) the same test against style factors built WITHOUT the AI leg
+    EXF = ["MKTx", "SMBx", "VALx", "MOMx"]
+    def spanx(key, msk):
+        d = fr.loc[msk, [key] + EXF].dropna()
+        if len(d) < 30:
+            return None
+        f = sm.OLS(d[key].values, sm.add_constant(d[EXF].values)).fit(cov_type="HAC", cov_kwds={"maxlags": HAC})
+        return {"alpha": r(f.params[0] * 1200, 1), "tA": r(f.tvalues[0], 2), "r2": r(f.rsquared * 100, 1),
+                "n": int(f.nobs), "b": {k: r(f.params[i + 1], 2) for i, k in enumerate(EXF)},
+                "t": {k: r(f.tvalues[i + 1], 1) for i, k in enumerate(EXF)}}
+    spanning["exAI"] = {nm: spanx("AIX", msk) for nm, msk in
+                        (("full", np.ones(len(fr), bool)), ("pre", pre), ("post", post))}
+    spanning["exAI10"] = {nm: spanx("AIX10", msk) for nm, msk in
+                          (("full", np.ones(len(fr), bool)), ("pre", pre), ("post", post))}
+
+    # (b) out-of-sample spanning: freeze pre-ChatGPT loadings, apply them after.
+    # If the factors "span" AI only because AI became the factors, the frozen
+    # betas will not price the post period.
+    fpre = sm.OLS(fr.loc[pre, "AIX"].values, sm.add_constant(fr.loc[pre, FAC].values)).fit()
+    resid_post = fr.loc[post, "AIX"].values - sm.add_constant(fr.loc[post, FAC].values) @ fpre.params
+    f_oos = sm.OLS(resid_post, np.ones(len(resid_post))).fit(cov_type="HAC", cov_kwds={"maxlags": HAC})
+    spanning["oos"] = {"alpha": r(float(f_oos.params[0]) * 1200, 1), "t": r(float(f_oos.tvalues[0]), 2),
+                       "n": int(len(resid_post))}
+
+    # (c) joint break test on alpha AND loadings (the first draft tested alpha only)
+    d_post = post.astype(float)
+    X_int = np.column_stack([fr[FAC].values, d_post, fr[FAC].values * d_post[:, None]])
+    fint = sm.OLS(fr["AIX"].values, sm.add_constant(X_int)).fit(cov_type="HAC", cov_kwds={"maxlags": HAC})
+    k = len(FAC)
+    Rmat = np.zeros((k + 1, X_int.shape[1] + 1))
+    for i in range(k + 1):
+        Rmat[i, 1 + k + i] = 1.0
+    wald = fint.wald_test(Rmat, scalar=True)
+    spanning["chow"] = {"p": r(float(wald.pvalue), 3), "stat": r(float(wald.statistic), 2), "df": k + 1}
+    se_break = float(fint.bse[1 + k])
+    spanning["breakAIX"] = {"diff": r(float(fint.params[1 + k]) * 1200, 1), "t": r(float(fint.tvalues[1 + k]), 2),
+                            "mde": r(2.8 * se_break * 1200, 1)}
     curve = []
     g1 = np.cumprod(1 + fr["AIX"].fillna(0)); g2 = np.cumprod(1 + fr["IN"].fillna(0))
     g3 = np.cumprod(1 + fr["AIXew"].fillna(0)); g4 = np.cumprod(1 + (fr["Mkt-RF"] + fr["RF"]))
+    g5 = np.cumprod(1 + fr["AIXB"].fillna(0))
     for i, m in enumerate(fr.index):
         curve.append({"date": str(m), "vw": r(g1.iloc[i], 3), "ind": r(g2.iloc[i], 3),
-                      "ew": r(g3.iloc[i], 3), "mkt": r(g4.iloc[i], 3), "capH": r(fr["capH"].iloc[i] * 100, 1)})
-    # post-ChatGPT alpha is a repricing: test alpha stability with a Chow-style dummy
-    d_post = post.astype(float)
-    Xc = np.column_stack([d_post, fr[FAC].values])
-    fch = hac_ols(fr["AIX"].values, Xc, HAC)
-    spanning["breakAIX"] = {"diff": r(fch.params[1] * 1200, 1), "t": r(fch.tvalues[1], 2)}
+                      "ew": r(g3.iloc[i], 3), "mkt": r(g4.iloc[i], 3), "capH": r(fr["capH"].iloc[i] * 100, 1),
+                      "nH": int(fr["nH"].iloc[i]), "nL": int(fr["nL"].iloc[i]), "nT": int(fr["nT"].iloc[i]),
+                      "biz": r(g5.iloc[i], 3)})
     (OUT / "factor.json").write_text(json.dumps({"stats": fstats, "spanning": spanning, "curve": curve}),
                                      encoding="utf-8")
 
@@ -805,8 +891,16 @@ def analyze():
         def car(msk):
             v = ab[msk]
             return np.nansum(v) * 100 if np.isfinite(v).sum() >= 0.8 * msk.sum() else np.nan
-        cars.append({"cik": row["cik"], "tic": row["tic"], "expo": row["expo"], "ind": row["ind"],
+        mkt_w = ffw["Mkt-RF"].values
+        bm = np.linalg.lstsq(np.column_stack([np.ones(m_e.sum()), mkt_w[m_e]]), y[m_e], rcond=None)[0]
+        ab_m = y - mkt_w * bm[1]
+        def car_of(v, msk):
+            vv = v[msk]
+            return np.nansum(vv) * 100 if np.isfinite(vv).sum() >= 0.8 * msk.sum() else np.nan
+        cars.append({"cik": row["cik"], "tic": row["tic"], "expo": row["expo"],
+                     "expoB": row["expoB"], "expoR": row["expoR"], "ind": row["ind"],
                      "lfv": np.log(row["fv"]), "car": car(win), "plc": car(plc), "car2": car(win2),
+                     "carM": car_of(ab_m, win), "carRaw": car_of(y + rfw, win),
                      "raw": np.nansum(Rwa[row["tic"]].values[win]) * 100})
     EV = pd.DataFrame(cars).dropna(subset=["car", "plc"])
     EV["x"] = np.log1p(EV["expo"])
@@ -823,17 +917,47 @@ def analyze():
                        "plc": r(g["plc"].mean(), 1), "car2": r(g["car2"].mean(), 1),
                        "expoLo": r(g["expo"].min(), 1), "expoHi": r(g["expo"].max(), 1)})
 
-    def xsec(ycol, fe=True, wls=False):
-        d = EV.dropna(subset=[ycol, "ind"]).copy()
-        X = d[["xz", "lfv"]]
+    def xsec(ycol, fe=True, wls=False, cols=("xz", "lfv")):
+        d = EV.dropna(subset=[ycol, "ind"] + [c for c in cols if c != "lfv"]).copy()
+        X = d[list(cols)]
         if fe:
             X = X.join(pd.get_dummies(d["ind"], prefix="i", drop_first=True, dtype=float))
         X = sm.add_constant(X.astype(float))
         mdl = (sm.WLS(d[ycol].astype(float), X, weights=np.exp(d["lfv"])) if wls
                else sm.OLS(d[ycol].astype(float), X))
         f = mdl.fit(cov_type="cluster", cov_kwds={"groups": pd.factorize(d["ind"])[0]})
-        return {"b": r(f.params["xz"], 2), "t": r(f.tvalues["xz"], 2), "n": int(f.nobs), "r2": r(f.rsquared * 100, 1)}
-    event = {"groups": groups,
+        main = [c for c in cols if c != "lfv"]
+        return {"b": r(f.params[main[0]], 2), "t": r(f.tvalues[main[0]], 2), "n": int(f.nobs),
+                "r2": r(f.rsquared * 100, 1),
+                **({f"b_{c}": r(f.params[c], 2) for c in main[1:]} if len(main) > 1 else {}),
+                **({f"t_{c}": r(f.tvalues[c], 2) for c in main[1:]} if len(main) > 1 else {})}
+    EV["xb"] = np.log1p(EV["expoB"].fillna(0))
+    EV["xb"] = (EV["xb"] - EV["xb"].mean()) / EV["xb"].std()
+    EV["xr"] = np.log1p(EV["expoR"].fillna(0))
+    EV["xr"] = (EV["xr"] - EV["xr"].mean()) / EV["xr"].std()
+    EV["dmention"] = (EV["expo"] > 0).astype(float)
+    EV["xint"] = 0.0
+    pos_m = EV["expo"] > 0
+    xi = np.log(EV.loc[pos_m, "expo"])
+    EV.loc[pos_m, "xint"] = ((xi - xi.mean()) / xi.std()).values
+    # a mean regression is the wrong test if "the winners were a handful of
+    # names": this asks whether exposure raises the odds of a top-5% outcome
+    thr95 = EV["car"].quantile(0.95)
+    EV["top5"] = (EV["car"] >= thr95).astype(float)
+    d_t = EV.dropna(subset=["car", "ind"]).copy()
+    lg_t = sm.Logit(d_t["top5"].values, sm.add_constant(d_t[["xz", "lfv"]].astype(float).values)).fit(disp=0)
+    tail = {"or": r(float(np.exp(lg_t.params[1])), 2), "p": r(float(lg_t.pvalues[1]), 3),
+            "n": int(lg_t.nobs), "thr": r(float(thr95), 1)}
+    qr = {}
+    for tau in (0.1, 0.5, 0.9):
+        f_q = sm.QuantReg(d_t["car"].values, sm.add_constant(d_t[["xz", "lfv"]].astype(float).values)).fit(q=tau)
+        qr[str(tau)] = {"b": r(float(f_q.params[1]), 2), "t": r(float(f_q.tvalues[1]), 2)}
+    event = {"groups": groups, "tail": tail, "qreg": qr,
+             "regB": xsec("car", False, cols=("xb", "lfv")), "regBfe": xsec("car", True, cols=("xb", "lfv")),
+             "regBR": xsec("car", False, cols=("xb", "xr", "lfv")),
+             "regMargin": xsec("car", False, cols=("dmention", "xint", "lfv")),
+             "regMkt": xsec("carM", False), "regRaw": xsec("carRaw", False),
+             "regB2": xsec("car2", False, cols=("xb", "lfv")),
              "reg": {"car": xsec("car"), "plc": xsec("plc"), "car2": xsec("car2"), "carNoFE": xsec("car", False),
                      "carVW": xsec("car", True, True), "car2VW": xsec("car2", True, True),
                      "plcVW": xsec("plc", True, True)},
@@ -851,6 +975,12 @@ def analyze():
         wks = ffw.index[(ffw.index <= me)][-52:]
         wk_by_month[m] = wks
     iw = ind_w.reindex(ffw.index)
+    # A tech factor, so "software, IT services, semis and hardware all fell on
+    # the same AI-disruption headline" cannot masquerade as crowded ownership.
+    TECH = ["Softw", "Chips", "Hardw", "BusSv", "LabEq", "ElcEq", "Telcm"]
+    tech_cols = [c for c in TECH if c in iw.columns]
+    techf = iw[tech_cols].mean(axis=1) - (ffw["Mkt-RF"] + ffw["RF"])
+    THRESH = [0.95, 0.90, 0.85, 0.80]          # pre-specified grid of "core" cutoffs
     cm_rows = []
     core_info = {}
     for m, g in U.groupby("m"):
@@ -879,7 +1009,12 @@ def analyze():
         B1 = np.linalg.lstsq(base1, Y, rcond=None)[0]
         E1 = Y - base1 @ B1
         Z1 = (E1 - E1.mean(0)) / E1.std(0)
+        baseT = np.column_stack([base, techf.loc[wks].values])   # + tech factor
+        BT = np.linalg.lstsq(baseT, Y, rcond=None)[0]
+        ET = Y - baseT @ BT
+        Zt = (ET - ET.mean(0)) / ET.std(0)
         inds = g["ind"].values
+        istech = np.isin(inds, TECH)
         legs_ = g["leg"].values
         dec = pd.qcut(np.log(g["fv"].values), 10, labels=False, duplicates="drop")
 
@@ -890,73 +1025,152 @@ def analyze():
             diff = inds[ix][:, None] != inds[ix][None, :]
             iu = np.triu(np.ones_like(diff, bool), 1) & diff
             return float(Cc[iu].mean())
+
+        def matched(ix, pool_mask, by_tech=False, draws=10, Z=Z6):
+            """Mean cross-industry correlation of a benchmark drawn from
+            `pool_mask`, matched on float-cap decile and (optionally) on being
+            in a tech industry."""
+            pool = np.where(pool_mask)[0]
+            vals = []
+            for _ in range(draws):
+                pick = []
+                for k in ix:
+                    sel = pool[dec[pool] == dec[k]]
+                    if by_tech:
+                        sel2 = sel[istech[sel] == istech[k]]
+                        sel = sel2 if len(sel2) else sel
+                    if len(sel):
+                        pick.append(rng.choice(sel))
+                if pick:
+                    vals.append(xcorr(np.unique(np.array(pick, dtype=int)), Z))
+            return float(np.nanmean(vals)) if vals else np.nan
+
         iH = np.where(legs_ == "H")[0]
         iL = np.where(legs_ == "L")[0]
-        iT = np.where(g["top"].values)[0]
         cH, cL = xcorr(iH), xcorr(iL)
-        cT, cT1 = xcorr(iT), xcorr(iT, Z1)
         cH1 = xcorr(iH, Z1)
-        # size-matched benchmark from non-H stocks: same float-cap decile mix
-        nonH = np.where(legs_ != "H")[0]
-        bench, bench1 = [], []
-        for _ in range(10):
-            pick = []
-            for d_ in dec[iH]:
-                pool = nonH[dec[nonH] == d_]
-                if len(pool):
-                    pick.append(rng.choice(pool))
-            pk = np.unique(np.array(pick))
-            bench.append(xcorr(pk))
-            bench1.append(xcorr(pk, Z1))
-        cB = float(np.nanmean(bench))
-        cB1 = float(np.nanmean(bench1))
-        # same size-matched benchmark for the top-decile core
-        nonT = np.where(~g["top"].values)[0]
-        benchT = []
-        for _ in range(10):
-            pick = [rng.choice(nonT[dec[nonT] == d_]) for d_ in dec[iT] if (dec[nonT] == d_).any()]
-            benchT.append(xcorr(np.unique(np.array(pick, dtype=int))))
-        cBT = float(np.nanmean(benchT))
+        cB = matched(iH, legs_ != "H")
+        cB1 = matched(iH, legs_ != "H", Z=Z1)
+        row = {"m": m, "coH": cH, "coL": cL, "coB": cB, "excess": cH - cB,
+               "coH1": cH1, "coB1": cB1, "excess1": cH1 - cB1,
+               "coAll": xcorr(np.arange(Z6.shape[1])), "coAll1": xcorr(np.arange(Z6.shape[1]), Z1)}
+        # the "core": several pre-specified cutoffs, each with a size-matched
+        # and a size+tech-matched benchmark, plus a tech-factor-residual version
+        expo_v = g["expo"].values
+        for th in THRESH:
+            q = np.nanquantile(expo_v, th)
+            ic = np.where((expo_v > q) & (expo_v > 0))[0]
+            tag = f"{int(round((1 - th) * 100))}"
+            if len(ic) < 20:
+                row[f"coT{tag}"] = row[f"excT{tag}"] = row[f"excTtech{tag}"] = row[f"excTfac{tag}"] = np.nan
+                continue
+            others = ~np.isin(np.arange(len(g)), ic)
+            c_ = xcorr(ic)
+            row[f"coT{tag}"] = c_
+            row[f"excT{tag}"] = c_ - matched(ic, others)
+            row[f"excTtech{tag}"] = c_ - matched(ic, others, by_tech=True)
+            row[f"excTfac{tag}"] = xcorr(ic, Zt) - matched(ic, others, by_tech=True, Z=Zt)
+            row[f"nT{tag}"] = len(ic)
+        # headline core = top decile (kept for continuity with the first draft)
+        iT = np.where(g["top"].values)[0]
+        row.update({"coT": row.get("coT10"), "coBT": row.get("coT10", np.nan) - row.get("excT10", np.nan),
+                    "excessT": row.get("excT10"), "excessTtech": row.get("excTtech10"),
+                    "excessTfac": row.get("excTfac10"), "nT": len(iT)})
         if m == M1:
-            # inference for the latest reading: resample WEEKS (block 4) and
-            # recompute core-minus-benchmark on a fixed set of benchmark draws
-            picks = [np.unique(np.array([rng.choice(nonT[dec[nonT] == d_]) for d_ in dec[iT]
-                                         if (dec[nonT] == d_).any()], dtype=int)) for _ in range(10)]
-            diffs = []
-            for _ in range(500):
-                wi = block_idx(rng, Z6.shape[0], 4)
-                Zb = Z6[wi]
-                Zb = (Zb - Zb.mean(0)) / Zb.std(0)
-                diffs.append(xcorr(iT, Zb) - np.nanmean([xcorr(pk, Zb) for pk in picks]))
+            # inference for the latest reading: resample WEEKS (block 4), and do
+            # it for every cutoff so a max-t correction across the grid is
+            # possible (the core cutoff was chosen after seeing the broad leg)
+            core_info = {"thresh": [], "inds": {}, "names": []}
+            for th in THRESH:
+                q = np.nanquantile(expo_v, th)
+                ic = np.where((expo_v > q) & (expo_v > 0))[0]
+                if len(ic) < 20:
+                    continue
+                others = ~np.isin(np.arange(len(g)), ic)
+                picks = []
+                for _ in range(10):
+                    pk = []
+                    for k in ic:
+                        sel = np.where(others)[0]
+                        sel = sel[dec[sel] == dec[k]]
+                        sel2 = sel[istech[sel] == istech[k]]
+                        sel = sel2 if len(sel2) else sel
+                        if len(sel):
+                            pk.append(rng.choice(sel))
+                    picks.append(np.unique(np.array(pk, dtype=int)))
+                diffs, diffs_t = [], []
+                for _ in range(400):
+                    wi = block_idx(rng, Z6.shape[0], 4)
+                    Zb = Z6[wi]
+                    Zb = (Zb - Zb.mean(0)) / Zb.std(0)
+                    Zbt = Zt[wi]
+                    Zbt = (Zbt - Zbt.mean(0)) / Zbt.std(0)
+                    diffs.append(xcorr(ic, Zb) - np.nanmean([xcorr(pk, Zb) for pk in picks]))
+                    diffs_t.append(xcorr(ic, Zbt) - np.nanmean([xcorr(pk, Zbt) for pk in picks]))
+                d_ = np.array(diffs)
+                core_info["thresh"].append({
+                    "pct": int(round((1 - th) * 100)), "n": int(len(ic)),
+                    "exc": r(float(np.mean(d_)), 3),
+                    "lo": r(float(np.percentile(d_, 2.5)), 3), "hi": r(float(np.percentile(d_, 97.5)), 3),
+                    "t": r(float(np.mean(d_) / np.std(d_)), 2),
+                    "excTech": r(float(np.mean(diffs_t)), 3),
+                    "tTech": r(float(np.mean(diffs_t) / np.std(diffs_t)), 2),
+                })
             gT = g.iloc[iT]
             wT = gT["fv"] / gT["fv"].sum()
-            core_info = {
-                "n": int(len(iT)), "lo": r(np.percentile(diffs, 2.5), 3), "hi": r(np.percentile(diffs, 97.5), 3),
-                "inds": gT["ind"].value_counts().head(8).to_dict(),
-                "ret6": r(float((np.prod(1 + np.nan_to_num(Rw.reindex(index=wks[-26:], columns=gT["tic"]).values), axis=0) - 1)
-                               @ wT.values) * 100, 1),
-                "ret6ew": r(float(np.mean(np.prod(1 + np.nan_to_num(Rw.reindex(index=wks[-26:], columns=gT["tic"]).values), axis=0) - 1)) * 100, 1),
+            r26 = np.prod(1 + np.nan_to_num(Rw.reindex(index=wks[-26:], columns=gT["tic"]).values), axis=0) - 1
+            core_info.update({
+                "n": int(len(iT)), "inds": gT["ind"].value_counts().head(8).to_dict(),
+                "ret6": r(float(r26 @ wT.values) * 100, 1), "ret6ew": r(float(np.mean(r26)) * 100, 1),
                 "names": gT.sort_values("fv", ascending=False)["tic"].head(15).tolist(),
-            }
-        # valuation spreads (raw and industry-adjusted log P/S)
+                "shareTech": r(float(np.mean(np.isin(gT["ind"].values, TECH))) * 100, 0),
+            })
+            mx = max(core_info["thresh"], key=lambda x: abs(x["t"] or 0))
+            core_info["maxT"] = mx["t"]
+            core_info["maxPct"] = mx["pct"]
+        # Forbes-Rigobon: correlations estimated in a high-volatility window are
+        # biased up. delta = (window market variance / full-sample) - 1.
+        mv = ffw["Mkt-RF"].loc[wks].var()
+        delta = float(mv / ffw["Mkt-RF"].var() - 1)
+        for k in ("excess", "excessT"):
+            c_ = row.get(k)
+            row[k + "_fr"] = (np.nan if c_ is None or not np.isfinite(c_)
+                              else float(c_ / np.sqrt(1 + delta * (1 - min(abs(c_), 0.99) ** 2))))
+        row["volRatio"] = delta + 1
+        # valuation spreads: median, value-weighted and aggregate. These answer
+        # different questions and disagree, which is itself a result.
         gv = U[(U["m"] == m)].copy()
         gv["lps_ind"] = gv["lps"] - gv.groupby("ind")["lps"].transform("median")
         vH, vL = gv[gv["leg"] == "H"], gv[gv["leg"] == "L"]
+
+        def vw_mean(x, col):
+            d_ = x[[col, "fv"]].dropna()
+            return float(np.average(d_[col], weights=d_["fv"])) if len(d_) else np.nan
+
+        def agg_ps(x):
+            d_ = x[["mcap", "rev"]].dropna()
+            return float(np.log(d_["mcap"].sum() / d_["rev"].sum())) if len(d_) > 5 else np.nan
         w = gv["fv"] / gv["fv"].sum()
         hw = np.sort(vH["fv"].values)[::-1]
-        cm_rows.append({
-            "m": m, "coH": cH, "coL": cL, "coB": cB, "excess": cH - cB,
-            "coH1": cH1, "coB1": cB1, "excess1": cH1 - cB1, "coT": cT, "coT1": cT1,
-            "coBT": cBT, "excessT": cT - cBT, "nT": len(iT),
-            "coAll": xcorr(np.arange(Z6.shape[1])), "coAll1": xcorr(np.arange(Z6.shape[1]), Z1),
+        uw = np.sort(gv["fv"].values)[::-1]
+        top10_ai = hw[:10].sum() / gv["fv"].sum()
+        top10_u = uw[:10].sum() / gv["fv"].sum()
+        big10 = gv.nlargest(10, "fv")
+        row.update({
             "val": vH["lps"].median() - vL["lps"].median(),
             "valInd": vH["lps_ind"].median() - vL["lps_ind"].median(),
+            "valVW": vw_mean(vH, "lps") - vw_mean(vL, "lps"),
+            "valVWind": vw_mean(vH, "lps_ind") - vw_mean(vL, "lps_ind"),
+            "valAgg": agg_ps(vH) - agg_ps(vL),
             "valCov": float(gv["lps"].notna().mean()),
             "capH": vH["fv"].sum() / gv["fv"].sum(),
-            "top10": hw[:10].sum() / gv["fv"].sum(),
+            "top10": top10_ai, "top10U": top10_u,
+            "aiInTop10": float((big10["leg"] == "H").mean()),
+            "effNH": float(1.0 / ((vH["fv"] / vH["fv"].sum()) ** 2).sum()),
             "hhiU": float((w ** 2).sum()),
-            "nH": len(vH),
+            "nH": len(vH), "nL": len(vL),
         })
+        cm_rows.append(row)
     CR = pd.DataFrame(cm_rows).set_index("m")
     aix = fr["AIX"]
     # run-up (trailing 24m cumulative AIX) and trailing 26-week factor vol, as of month-end m
@@ -987,13 +1201,23 @@ def analyze():
     def z_exp(s, min_obs=24):
         return (s - s.expanding(min_obs).mean()) / s.expanding(min_obs).std(ddof=0)
     COMP = ["excess", "valInd", "capH", "runup"]
-    for c in COMP + ["fvol", "val", "top10", "excess1", "excessT"]:
+    for c in COMP + ["fvol", "val", "valVW", "valAgg", "top10", "top10U", "excess1",
+                     "excessT", "excessTtech", "excessTfac", "effNH"]:
         CR[c + "_z"] = z_exp(CR[c])
-    CR["crowd"] = CR[[c + "_z" for c in COMP]].mean(axis=1, skipna=False)
+    # The mean of four z-scores is not itself a z when the legs are negatively
+    # correlated (Table 13): its variance is well below one. Re-standardize, so
+    # "sigma" on the composite means what it says.
+    CR["crowdRaw"] = CR[[c + "_z" for c in COMP]].mean(axis=1, skipna=False)
+    CR["crowd"] = z_exp(CR["crowdRaw"])
+    # same composite with the float-weighted valuation leg in place of the
+    # median one: the two valuation measures disagree, so both are reported
+    CR["crowdVWraw"] = CR[["excess_z", "valVW_z", "capH_z", "runup_z"]].mean(axis=1, skipna=False)
+    CR["crowdVW"] = z_exp(CR["crowdVWraw"])
+    summary["crowdRawSd"] = r(float(CR["crowdRaw"].std()), 2)
     # full-sample standardized composite (for regressions; stated as in-sample)
     CR["crowdFS"] = CR[COMP].apply(lambda s: (s - s.mean()) / s.std()).mean(axis=1)
 
-    last = CR.index[-1]
+    last = CR_END = CR.index[-1]
     def pctile(s, v):
         s = s.dropna()
         return float((s <= v).mean() * 100)
@@ -1004,13 +1228,21 @@ def analyze():
                                ("excess1", "Excess comovement, market-model residuals", "ρ", 3),
                                ("excessT", "Excess comovement, top-decile AI core", "ρ", 3),
                                ("coT", "  — top-decile core, cross-industry pairs", "ρ", 3),
-                               ("valInd", "Valuation spread, industry-adj. log P/S", "log", 2),
-                               ("val", "Valuation spread, raw log P/S", "log", 2),
+                               ("excessTtech", "  — vs size- AND tech-matched benchmark", "ρ", 3),
+                               ("excessTfac", "  — tech-factor residuals, tech-matched", "ρ", 3),
+                               ("valInd", "Valuation spread, median industry-adj. log P/S", "log", 2),
+                               ("val", "Valuation spread, median raw log P/S", "log", 2),
+                               ("valVW", "Valuation spread, float-weighted log P/S", "log", 2),
+                               ("valAgg", "Valuation spread, aggregate log P/S", "log", 2),
                                ("capH", "AI-leg share of universe float-cap", "%", 1),
                                ("top10", "Top-10 AI names' share of universe", "%", 1),
+                               ("top10U", "  — top-10 universe names (any exposure)", "%", 1),
+                               ("effNH", "Effective number of names in the AI leg", "n", 0),
                                ("runup", "AI factor trailing 24m return", "%", 0),
                                ("fvol", "AI factor volatility (26w, ann.)", "%", 1),
-                               ("crowd", "Crowding composite (real-time z)", "z", 2)):
+                               ("crowdRaw", "Crowding composite, mean of four z's", "z", 2),
+                               ("crowd", "  — re-standardized (real-time z)", "z", 2),
+                               ("crowdVW", "Composite with float-weighted valuation leg", "z", 2)):
         mult = 100 if unit == "%" else 1
         v = CR.at[last, c]
         yago = CR[c].get(last - 12, np.nan)
@@ -1019,7 +1251,9 @@ def analyze():
                      "z": r(CR.at[last, c + "_z"], 2) if c + "_z" in CR else None,
                      "pct": r(pctile(CR[c], v), 0)})
     series = [{"date": str(m), **{k: r(CR.at[m, k], 4) for k in
-               ("coH", "coL", "coB", "excess", "coH1", "coB1", "excess1", "coT", "coT1", "coBT", "excessT", "coAll", "coAll1", "val", "valInd", "capH", "top10", "runup", "fvol", "crowd")}}
+               ("coH", "coL", "coB", "excess", "coH1", "coB1", "excess1", "coT", "coBT", "excessT",
+                "excessTtech", "excessTfac", "excess_fr", "excessT_fr", "coAll", "coAll1", "val", "valInd",
+                "valVW", "valAgg", "capH", "top10", "top10U", "effNH", "runup", "fvol", "crowdRaw", "crowd", "crowdVW")}}
               for m in CR.index]
     ccorr = CR[COMP].corr().round(2).values.tolist()
     (OUT / "crowding.json").write_text(json.dumps({"asOf": str(last), "dash": dash, "series": series,
@@ -1028,74 +1262,190 @@ def analyze():
                                        encoding="utf-8")
 
     # ---------------------------------------------- 6. does crowding predict?
-    pred = []
-    fwd = {}
-    for h in (3, 6, 12):
-        vals = {}
-        for m in CR.index:
-            f_ = aix[(aix.index > m) & (aix.index <= m + h)]
-            vals[m] = np.prod(1 + f_.values) - 1 if len(f_) == h else np.nan
-        fwd[f"r{h}"] = pd.Series(vals)
-    dd = {}
-    vol6 = {}
-    for m in CR.index:
-        f_ = aix[(aix.index > m) & (aix.index <= m + 12)]
-        dd[m] = max_dd(f_.values) if len(f_) == 12 else np.nan
-        me = m.to_timestamp(how="end").normalize()
-        me6 = (m + 6).to_timestamp(how="end").normalize()
-        wv = WA[(WA.index > me) & (WA.index <= me6)]
-        vol6[m] = wv.std() * np.sqrt(52) if len(wv) >= 24 else np.nan
-    fwd["dd12"] = pd.Series(dd)
-    fwd["vol6"] = pd.Series(vol6)
-    FW = pd.DataFrame(fwd)
-    for c in COMP + ["crowdFS"]:
-        x = (CR[c] - CR[c].mean()) / CR[c].std()
-        for ycol, h, lab in (("r3", 3, "fwd 3m AIX"), ("r6", 6, "fwd 6m AIX"), ("r12", 12, "fwd 12m AIX"),
-                             ("dd12", 12, "fwd 12m max drawdown"), ("vol6", 6, "fwd 6m factor vol")):
-            y = FW[ycol].values * 100
-            f = hac_ols(y, x.values[:, None], h)
-            if f is None:
-                continue
-            se = f.bse[1]
-            # HAC t's are unreliable with ~n/h independent observations, so
-            # each slope also gets a circular block bootstrap (block = 2h) of
-            # (x, y) pairs; p is two-sided from the bootstrap distribution
-            # re-centred at zero, Bonferroni over the 25-cell grid
-            msk = np.isfinite(y) & np.isfinite(x.values)
-            xv, yv = x.values[msk], y[msk]
-            bs = []
-            for _ in range(2000):
-                ii = block_idx(rng, len(xv), 2 * h)
-                xb = xv[ii]
-                if xb.std() == 0:
-                    continue
-                bs.append(np.polyfit(xb, yv[ii], 1)[0])
-            bs = np.array(bs)
-            p_bs = float(np.mean(np.abs(bs - bs.mean()) >= abs(f.params[1])))
-            pred.append({"x": c, "y": ycol, "ylab": lab, "b": r(f.params[1], 2), "t": r(f.tvalues[1], 2),
-                         "n": int(f.nobs), "neff": int(f.nobs // h), "mde": r(2.8 * se, 2),
-                         "r2": r(f.rsquared * 100, 1),
-                         "lo": r(np.percentile(bs, 2.5), 2), "hi": r(np.percentile(bs, 97.5), 2),
-                         "p": r(p_bs, 3), "pBonf": r(min(1.0, p_bs * 25), 3)})
-    (OUT / "predict.json").write_text(json.dumps(pred), encoding="utf-8")
+    # Two problems make the naive version misleading. (i) Overlapping forward
+    # windows leave ~n/h independent observations, so HAC t's are optimistic.
+    # (ii) Stambaugh (1999): a persistent regressor whose innovations correlate
+    # with contemporaneous returns biases the predictive slope, and for a
+    # trailing run-up that bias is NEGATIVE - it manufactures apparent reversal.
+    # So p-values come from a null bootstrap that reproduces both: the gauge is
+    # simulated from its own AR(1) with block-resampled innovations paired to
+    # the return innovations, under beta = 0. Romano-Wolf step-down then
+    # controls the family-wise error across the whole grid, exploiting the
+    # dependence that makes Bonferroni far too conservative here.
+    g_all = aix.reindex(CR.index)
+    outcomes = ["r3", "r6", "r12", "dd12", "vol12"]
+    OUT_LAB = {"r3": "fwd 3m AIX", "r6": "fwd 6m AIX", "r12": "fwd 12m AIX",
+               "dd12": "fwd 12m max drawdown", "vol12": "fwd 12m factor vol"}
+    HORIZ = {"r3": 3, "r6": 6, "r12": 12, "dd12": 12, "vol12": 12}
+    GAUGES = [("excess", "Excess comovement (broad leg)"), ("excessT", "Excess comovement (core)"),
+              ("valVW", "Valuation spread (float-weighted)"), ("capH", "Float-cap share"),
+              ("runup", "24m factor run-up"), ("crowdFS", "Crowding composite")]
 
-    # ---------------------------------------------- 7. what did AI returns consist of? (re-rating decomposition)
-    base_m, end_m = pd.Period("2022-11", "M"), CR.index[-1]
+    def build_outcomes(gser: np.ndarray):
+        """Forward outcomes from a monthly return path (index-aligned)."""
+        T = len(gser)
+        out = {k: np.full(T, np.nan) for k in outcomes}
+        for t in range(T):
+            for h, key in ((3, "r3"), (6, "r6"), (12, "r12")):
+                if t + h < T:
+                    out[key][t] = np.prod(1 + gser[t + 1:t + 1 + h]) - 1
+            if t + 12 < T:
+                w = gser[t + 1:t + 13]
+                out["dd12"][t] = max_dd(w)
+                out["vol12"][t] = np.std(w, ddof=1) * np.sqrt(12)
+        return out
+
+    def hac_t(y, x, lag):
+        """OLS slope and Newey-West t for a single regressor (fast path)."""
+        m = np.isfinite(y) & np.isfinite(x)
+        yy, xx = y[m], x[m]
+        n = len(yy)
+        if n < 24:
+            return np.nan, np.nan, 0
+        xc = xx - xx.mean()
+        b = float(xc @ (yy - yy.mean()) / (xc @ xc))
+        a = yy.mean() - b * xx.mean()
+        e = yy - a - b * xx
+        s = xc * e
+        S = float(s @ s)
+        for l in range(1, lag + 1):
+            w = 1.0 - l / (lag + 1.0)
+            S += 2.0 * w * float(s[l:] @ s[:-l])
+        var_b = S / (xc @ xc) ** 2
+        return b, (b / np.sqrt(var_b) if var_b > 0 else np.nan), n
+
+    real = build_outcomes(g_all.values)
+    gauge_x, ar = {}, {}
+    for key, _ in GAUGES:
+        col = CR["crowdFS"] if key == "crowdFS" else CR[key]
+        x = ((col - col.mean()) / col.std()).values
+        gauge_x[key] = x
+        m = np.isfinite(x[1:]) & np.isfinite(x[:-1])
+        phi = float(np.polyfit(x[:-1][m], x[1:][m], 1)[0])
+        c0 = float(x[1:][m].mean() - phi * x[:-1][m].mean())
+        u = np.full(len(x), np.nan)
+        u[1:][m] = x[1:][m] - c0 - phi * x[:-1][m]
+        ar[key] = (c0, min(max(phi, -0.99), 0.99), u)
+
+    obs = {}
+    for key, _ in GAUGES:
+        for oc in outcomes:
+            y = real[oc] * 100
+            b, t_, n_ = hac_t(y, gauge_x[key], HORIZ[oc])
+            obs[(key, oc)] = {"b": b, "t": t_, "n": n_}
+
+    eps = (g_all - g_all.mean()).values
+    mu_g = float(g_all.mean())
+    cells = [(k, oc) for k, _ in GAUGES for oc in outcomes]
+    NB = 2000
+    tnull = np.full((NB, len(cells)), np.nan)
+    Tn = len(eps)
+    for b_ in range(NB):
+        ii = block_idx(rng, Tn, 12)                    # one draw shared by all cells
+        gsim = mu_g + np.nan_to_num(eps[ii])
+        osim = build_outcomes(gsim)
+        for ci, (key, oc) in enumerate(cells):
+            c0, phi, u = ar[key]
+            us = np.nan_to_num(u[ii])
+            xs = np.empty(Tn)
+            xs[0] = gauge_x[key][0] if np.isfinite(gauge_x[key][0]) else 0.0
+            for t in range(1, Tn):
+                xs[t] = c0 + phi * xs[t - 1] + us[t]
+            xs = (xs - xs.mean()) / xs.std()
+            _, t_, _ = hac_t(osim[oc] * 100, xs, HORIZ[oc])
+            tnull[b_, ci] = t_
+    tobs = np.array([abs(obs[c]["t"]) if np.isfinite(obs[c]["t"]) else 0.0 for c in cells])
+    tn = np.abs(np.nan_to_num(tnull))
+    p_single = (tn >= tobs[None, :]).mean(axis=0)
+    # Romano-Wolf step-down
+    order = np.argsort(-tobs)
+    p_rw = np.empty(len(cells))
+    remaining = list(order)
+    prev = 0.0
+    for k in range(len(order)):
+        idx_k = order[k]
+        mx = tn[:, remaining].max(axis=1)
+        p_k = float((mx >= tobs[idx_k]).mean())
+        prev = max(prev, p_k)
+        p_rw[idx_k] = prev
+        remaining = remaining[1:]
+    pred = []
+    for ci, (key, oc) in enumerate(cells):
+        o = obs[(key, oc)]
+        mde = abs(o["b"] / o["t"]) * 2.8 if o["t"] and np.isfinite(o["t"]) and o["t"] != 0 else None
+        pred.append({"x": key, "y": oc, "ylab": OUT_LAB[oc], "b": r(o["b"], 2), "t": r(o["t"], 2),
+                     "n": o["n"], "neff": int(o["n"] // HORIZ[oc]), "mde": r(mde, 2),
+                     "p": r(float(p_single[ci]), 3), "pRW": r(float(p_rw[ci]), 3),
+                     "label": dict(GAUGES)[key]})
+    (OUT / "predict.json").write_text(json.dumps(pred), encoding="utf-8")
+    summary["predMinP"] = r(float(np.min(p_single)), 3)
+    summary["predMinRW"] = r(float(np.min(p_rw)), 3)
+    summary["nullBoot"] = NB
+
+    # ------------------------------- 7. what the AI cohort's market-cap gain was made of
+    # This decomposes the change in AGGREGATE MARKET CAP of a fixed cohort, not
+    # a shareholder return: issuance, buybacks and M&A move it too. Three-way,
+    # so margin expansion (a fundamental) is not counted as re-rating:
+    #   dlog(MV) = dlog(Sales) + dlog(OpMargin) + dlog(MV/OpInc)
+    base_m, end_m = pd.Period("2022-11", "M"), CR_END
     b0 = U[(U["m"] == base_m)].set_index("cik")
     s1 = st[st["m"] == end_m].set_index("cik")
     decomp = []
     for leg, lab in (("H", "AI leg (fixed at Nov-2022)"), ("L", "Low-AI leg (fixed at Nov-2022)")):
-        ids = b0.index[(b0["leg"] == leg)]
-        ids = [c for c in ids if c in s1.index]
+        ids = [c for c in b0.index[b0["leg"] == leg] if c in s1.index]
         a0, a1 = b0.loc[ids], s1.loc[ids]
-        ok = (a0["mcap"].notna() & a0["rev"].notna() & a1["mcap"].notna() & a1["rev"].notna()).values
-        a0, a1 = a0[ok], a1[ok]
-        mc0, mc1, rv0, rv1 = a0["mcap"].sum(), a1["mcap"].sum(), a0["rev"].sum(), a1["rev"].sum()
-        tot = np.log(mc1 / mc0)
-        gs = np.log(rv1 / rv0)
-        decomp.append({"leg": lab, "n": int(ok.sum()), "cap": r(tot * 100, 1), "sales": r(gs * 100, 1),
-                       "rerate": r((tot - gs) * 100, 1), "ps0": r(mc0 / rv0, 2), "ps1": r(mc1 / rv1, 2),
-                       "top5": r(np.sort((a1["mcap"] - a0["mcap"]).values)[::-1][:5].sum() / (mc1 - mc0) * 100, 0)})
+        ok = (a0["mcap"].notna() & a0["rev"].notna() & a1["mcap"].notna() & a1["rev"].notna()
+              & a0["oi"].notna() & a1["oi"].notna() & (a0["oi"] > 0) & (a1["oi"] > 0)).values
+        a0f, a1f = a0[ok], a1[ok]
+
+        def parts(x0, x1):
+            mc0, mc1 = x0["mcap"].sum(), x1["mcap"].sum()
+            rv0, rv1 = x0["rev"].sum(), x1["rev"].sum()
+            oi0, oi1 = x0["oi"].sum(), x1["oi"].sum()
+            return {"cap": np.log(mc1 / mc0), "sales": np.log(rv1 / rv0),
+                    "margin": np.log((oi1 / rv1) / (oi0 / rv0)),
+                    "mult": np.log((mc1 / oi1) / (mc0 / oi0)),
+                    "rerate_ps": np.log((mc1 / rv1) / (mc0 / rv0)),
+                    "ps0": mc0 / rv0, "ps1": mc1 / rv1, "pe0": mc0 / oi0, "pe1": mc1 / oi1,
+                    "opm0": oi0 / rv0, "opm1": oi1 / rv1}
+        pt = parts(a0f, a1f)
+        # firm bootstrap: these are cohort aggregates, not means, so the
+        # uncertainty is which firms are in the cohort
+        bs = {k: [] for k in ("cap", "sales", "margin", "mult", "top5")}
+        idxs = np.arange(len(a0f))
+        for _ in range(2000):
+            pick = rng.choice(idxs, len(idxs))
+            x0, x1 = a0f.iloc[pick], a1f.iloc[pick]
+            pb = parts(x0, x1)
+            for k in ("cap", "sales", "margin", "mult"):
+                bs[k].append(pb[k])
+            gain = (x1["mcap"].values - x0["mcap"].values)
+            bs["top5"].append(np.sort(gain)[::-1][:5].sum() / gain.sum() * 100)
+        gain = (a1f["mcap"] - a0f["mcap"]).values
+        # shift-share on the aggregate P/S: within-firm re-rating vs a mix shift
+        # toward high-multiple names
+        w0 = a0f["rev"].values / a0f["rev"].sum()
+        w1 = a1f["rev"].values / a1f["rev"].sum()
+        ps_i0 = (a0f["mcap"] / a0f["rev"]).values
+        ps_i1 = (a1f["mcap"] / a1f["rev"]).values
+        within = float(np.sum(w0 * (ps_i1 - ps_i0)))
+        between = float(np.sum((w1 - w0) * ps_i0))
+        cross = float(np.sum((w1 - w0) * (ps_i1 - ps_i0)))
+        decomp.append({
+            "leg": lab, "n": int(ok.sum()),
+            "cap": r(pt["cap"] * 100, 1), "sales": r(pt["sales"] * 100, 1),
+            "margin": r(pt["margin"] * 100, 1), "mult": r(pt["mult"] * 100, 1),
+            "rerate_ps": r(pt["rerate_ps"] * 100, 1),
+            "capLo": r(np.percentile(bs["cap"], 2.5) * 100, 1), "capHi": r(np.percentile(bs["cap"], 97.5) * 100, 1),
+            "multLo": r(np.percentile(bs["mult"], 2.5) * 100, 1), "multHi": r(np.percentile(bs["mult"], 97.5) * 100, 1),
+            "marginLo": r(np.percentile(bs["margin"], 2.5) * 100, 1), "marginHi": r(np.percentile(bs["margin"], 97.5) * 100, 1),
+            "ps0": r(pt["ps0"], 2), "ps1": r(pt["ps1"], 2), "pe0": r(pt["pe0"], 1), "pe1": r(pt["pe1"], 1),
+            "opm0": r(pt["opm0"] * 100, 1), "opm1": r(pt["opm1"] * 100, 1),
+            "top5": r(np.sort(gain)[::-1][:5].sum() / gain.sum() * 100, 0),
+            "top5Lo": r(np.percentile(bs["top5"], 2.5), 0), "top5Hi": r(np.percentile(bs["top5"], 97.5), 0),
+            "within": r(within / (within + between + cross) * 100, 0),
+            "between": r(between / (within + between + cross) * 100, 0),
+        })
     (OUT / "decomp.json").write_text(json.dumps(decomp), encoding="utf-8")
 
     # ---------------------------------------------- 8. latest cross-section: names and industries
@@ -1166,6 +1516,7 @@ def run_gsy(rng):
     lm = np.log1p(mkt)
     cum24 = np.expm1(lr.rolling(24).sum())
     cum12 = np.expm1(lr.rolling(12).sum())
+    cum60 = np.expm1(lr.rolling(60).sum())
     prev12 = np.expm1(lr.shift(12).rolling(12).sum())
     mk24 = np.expm1(lm.rolling(24).sum())
     net24 = cum24.sub(mk24, axis=0)
@@ -1174,28 +1525,51 @@ def run_gsy(rng):
     # forward paths
     L = lr.values
 
-    def fwd_stats(i, j):
+    def fwd_stats(i, j, need=24):
+        """Forward outcomes over the next 24 months.
+
+        Two crash definitions, because they are not the same experiment:
+          crash    - Greenwood-Shleifer-You: a 40% drawdown from the RUNNING
+                     PEAK (the episode month counts as the first peak), so an
+                     industry that rallies 60% and gives it all back crashes;
+          crashEnt - the entry-anchored variant: 40% below the episode-month
+                     level, which only fires if the whole run-up plus more is
+                     surrendered.
+        """
         f = L[i + 1:i + 25, j]
-        if len(f) < 24 or not np.isfinite(f).all():
+        f = f[np.isfinite(f)]
+        if len(f) < need:
             return None
         path = np.exp(np.cumsum(f))
-        fm = lm.values[i + 1:i + 25]
-        return {"f12": float(path[11] - 1), "f24": float(path[23] - 1),
-                "n24": float(path[23] - np.exp(np.sum(fm))),
-                "n12": float(path[11] - np.exp(np.sum(fm[:12]))),
-                "crash": bool(path.min() <= 0.6), "trough": float(path.min() - 1)}
+        peak = np.maximum.accumulate(np.concatenate([[1.0], path]))[1:]
+        dd = float((path / peak - 1).min())
+        out = {"crash": bool(dd <= -0.4), "crashEnt": bool(path.min() <= 0.6),
+               "dd": dd, "trough": float(path.min() - 1), "months": int(len(f)),
+               "peak": float(path.max() - 1)}
+        if len(f) == 24:
+            fm = lm.values[i + 1:i + 25]
+            out.update({"f12": float(path[11] - 1), "f24": float(path[23] - 1),
+                        "n24": float(path[23] - np.exp(np.sum(fm))),
+                        "n12": float(path[11] - np.exp(np.sum(fm[:12])))})
+        return out
 
     NFv = NF.values
     M_raw, M_net = cum24.values, net24.values
+    M_60 = cum60.values
 
-    def episodes(thr, net_thr=None, min_firms=10, since=None):
-        """Run-up if the trailing 24m raw return > thr AND (optionally) the
-        net-of-market return > net_thr; industries need >= min_firms."""
+    def episodes(thr=1.0, thr5=0.5, net_thr=None, min_firms=10, since=None, until=None,
+                 skip=None):
+        """A run-up episode. The baseline follows Greenwood-Shleifer-You: a
+        two-year raw return above `thr` AND a five-year raw return above `thr5`
+        (the long-horizon filter is what keeps rebounds from a crash out).
+        `net_thr` optionally also requires a net-of-market two-year run-up."""
         out = []
         for j, ind in enumerate(R.columns):
             last_ev = -99
-            for i in range(24, n):
+            for i in range(60, n):
                 ok = np.isfinite(M_raw[i, j]) and M_raw[i, j] > thr
+                if thr5 is not None:
+                    ok = ok and np.isfinite(M_60[i, j]) and M_60[i, j] > thr5
                 if net_thr is not None:
                     ok = ok and np.isfinite(M_net[i, j]) and M_net[i, j] > net_thr
                 ok = ok and np.isfinite(NFv[i, j]) and NFv[i, j] >= min_firms
@@ -1203,11 +1577,14 @@ def run_gsy(rng):
                     continue
                 last_ev = i
                 p = idx[i]
-                if since and str(p) < since:
+                if (since and str(p) < since) or (until and str(p) > until):
+                    continue
+                if skip and skip[0] <= str(p) <= skip[1]:
                     continue
                 yr = p.year if p.month >= 7 else p.year - 1   # BE/ME row formed each June
                 ev = {"ind": ind, "date": str(p), "i": i, "j": j, "yr": p.year,
                       "run": float(M_raw[i, j]), "net": float(M_net[i, j]),
+                      "run5": float(M_60[i, j]) if np.isfinite(M_60[i, j]) else None,
                       "vol": float(vol12.values[i, j]) if np.isfinite(vol12.values[i, j]) else None,
                       "accel": float(cum12.values[i, j] - prev12.values[i, j]),
                       "issue": float(np.log(NFv[i, j] / NFv[i - 24, j])) if NFv[i - 24, j] > 0 else None,
@@ -1230,41 +1607,66 @@ def run_gsy(rng):
             vals.append(stat(s_))
         return np.percentile(vals, 2.5), np.percentile(vals, 97.5), len(yrs)
 
-    # base rates: all industry-months (>= 10 firms) with a complete forward window
-    base = [fwd_stats(i, j) for i in range(24, n) for j in range(R.shape[1])
-            if np.isfinite(NFv[i, j]) and NFv[i, j] >= 10]
-    base = [b for b in base if b]
-    base_crash = np.mean([b["crash"] for b in base])
-    base_f24 = np.mean([b["f24"] for b in base])
-    base_n24 = np.mean([b["n24"] for b in base])
-    base45 = [fwd_stats(i, j) for i in range(24, n) for j in range(R.shape[1])
-              if str(idx[i]) >= "1945-01" and np.isfinite(NFv[i, j]) and NFv[i, j] >= 10]
-    base45_crash = np.mean([b["crash"] for b in base45 if b])
+    # base rates over all industry-months (>= 10 firms) with a complete window,
+    # keeping each one's trailing volatility so the comparison can be matched
+    base_rows = []
+    for i in range(60, n):
+        for j in range(R.shape[1]):
+            if not (np.isfinite(NFv[i, j]) and NFv[i, j] >= 10):
+                continue
+            fs = fwd_stats(i, j)
+            if fs:
+                base_rows.append({"i": i, "j": j, "yr": idx[i].year, "date": str(idx[i]),
+                                  "vol": vol12.values[i, j], "crash": fs["crash"],
+                                  "crashEnt": fs["crashEnt"], "f24": fs["f24"], "n24": fs["n24"]})
+    B = pd.DataFrame(base_rows)
+    B["vd"] = pd.qcut(B["vol"], 10, labels=False, duplicates="drop")
+    dec_rate = B.groupby("vd")["crash"].mean()
+    base = {"crash": r(B["crash"].mean() * 100, 1), "crashEnt": r(B["crashEnt"].mean() * 100, 1),
+            "f24": r(B["f24"].mean() * 100, 1), "n24": r(B["n24"].mean() * 100, 1), "n": int(len(B)),
+            "crash45": r(B.loc[B["yr"] >= 1945, "crash"].mean() * 100, 1)}
+
+    def vol_matched_rate(evs):
+        """Base rate over industry-months in the same trailing-volatility
+        deciles as the episodes: a 40% drawdown is mechanically likelier in a
+        volatile industry, so the unconditional rate is not the right foil."""
+        vd = pd.cut(pd.Series([e["vol"] for e in evs if e["vol"] is not None]),
+                    bins=[-np.inf] + list(B.groupby("vd")["vol"].max().values[:-1]) + [np.inf],
+                    labels=False)
+        w = vd.value_counts(normalize=True)
+        return float(sum(dec_rate.get(k, np.nan) * v for k, v in w.items()))
 
     thr_tab = []
-    specs = [("50% raw & net", 0.5, 0.5, None), ("100% raw & net (baseline)", 1.0, 1.0, None),
-             ("150% raw & net", 1.5, 1.5, None), ("100% raw only", 1.0, None, None),
-             ("100% raw & net, since 1945", 1.0, 1.0, "1945-01"),
-             ("100% raw & net, since 1963", 1.0, 1.0, "1963-07")]
-    for lab, thr, nthr, since in specs:
-        evs = [e for e in episodes(thr, nthr, since=since) if e["fwd"]]
+    specs = [
+        ("GSY baseline: 100% 2y + 50% 5y", dict(thr=1.0, thr5=0.5)),
+        ("  — also > 100% net of market", dict(thr=1.0, thr5=0.5, net_thr=1.0)),
+        ("50% 2y + 50% 5y", dict(thr=0.5, thr5=0.5)),
+        ("150% 2y + 50% 5y", dict(thr=1.5, thr5=0.5)),
+        ("100% 2y only (no 5y filter)", dict(thr=1.0, thr5=None)),
+        ("100% 2y + 50% 5y, since 1945", dict(thr=1.0, thr5=0.5, since="1945-01")),
+        ("100% 2y + 50% 5y, ex 1998–2001", dict(thr=1.0, thr5=0.5, skip=("1998-01", "2001-12"))),
+    ]
+    for lab, kw in specs:
+        evs = [e for e in episodes(**kw) if e["fwd"] and e["fwd"]["months"] == 24]
         cr = np.array([e["fwd"]["crash"] for e in evs], float)
+        cre = np.array([e["fwd"]["crashEnt"] for e in evs], float)
         f24 = np.array([e["fwd"]["f24"] for e in evs])
         n24 = np.array([e["fwd"]["n24"] for e in evs])
         lo, hi, ny = year_boot(evs, lambda s_: np.mean([e["fwd"]["crash"] for e in s_]))
         nlo, nhi, _ = year_boot(evs, lambda s_: np.mean([e["fwd"]["n24"] for e in s_]), 2000)
         thr_tab.append({"label": lab, "n": len(evs), "years": ny, "crash": r(cr.mean() * 100, 0),
                         "lo": r(lo * 100, 0), "hi": r(hi * 100, 0),
+                        "crashEnt": r(cre.mean() * 100, 0), "volMatched": r(vol_matched_rate(evs) * 100, 0),
                         "f24": r(np.mean(f24) * 100, 1), "n24": r(np.mean(n24) * 100, 1),
                         "nlo": r(nlo * 100, 1), "nhi": r(nhi * 100, 1),
                         "f24med": r(np.median(f24) * 100, 1), "pneg": r(np.mean(f24 < 0) * 100, 0)})
 
     # the baseline sample: characteristics of crashes vs non-crashes
-    ev100 = [e for e in episodes(1.0, 1.0) if e["fwd"]]
-    df = pd.DataFrame([{**{k: e[k] for k in ("ind", "date", "yr", "run", "net", "vol", "accel", "issue",
-                                             "dshare", "relbm")},
+    ev100 = [e for e in episodes() if e["fwd"] and e["fwd"]["months"] == 24]
+    df = pd.DataFrame([{**{k: e[k] for k in ("ind", "date", "yr", "run", "net", "run5", "vol", "accel",
+                                             "issue", "dshare", "relbm")},
                         "crash": int(e["fwd"]["crash"]), "f24": e["fwd"]["f24"], "n24": e["fwd"]["n24"],
-                        "trough": e["fwd"]["trough"]} for e in ev100])
+                        "trough": e["fwd"]["trough"], "dd": e["fwd"]["dd"]} for e in ev100])
     chars = []
     for c, lab in (("run", "Run-up size (24m raw)"), ("vol", "Realized volatility (12m)"),
                    ("accel", "Acceleration (last 12m − prior 12m)"), ("issue", "Δ log number of firms (24m)"),
@@ -1341,30 +1743,68 @@ def run_gsy(rng):
 
     # recent and named episodes
     named = []
-    for e in episodes(1.0, 1.0):
+    for e in episodes(thr5=None):          # 2y filter only, so live episodes are visible
         if e["date"] >= "1995-01" or e["ind"] in ("Chips", "Softw", "Hardw"):
-            fs = e["fwd"]
-            # realized path so far for episodes whose 24m window hasn't closed
-            i, j = e["i"], e["j"]
-            f = L[i + 1:, j]
-            f = f[np.isfinite(f)][:24]
-            path = np.exp(np.cumsum(f)) if len(f) else np.array([1.0])
+            fs = e["fwd"] or fwd_stats(e["i"], e["j"], need=1)   # partial path for live episodes
+            if fs is None:
+                continue
             named.append({"ind": e["ind"], "date": e["date"], "run": r(e["run"] * 100, 0),
+                          "run5": r((e["run5"] or np.nan) * 100, 0),
                           "vol": r((e["vol"] or np.nan) * 100, 0), "accel": r(e["accel"] * 100, 0),
                           "issue": r((e["issue"] if e["issue"] is not None else np.nan) * 100, 0),
-                          "crash": fs["crash"] if fs else None, "f24": r(fs["f24"] * 100, 0) if fs else None,
-                          "trough": r((path.min() - 1) * 100, 0), "sofar": r((path[-1] - 1) * 100, 0),
-                          "months": int(len(f)), "open": fs is None})
-    return {"start": str(idx[0]), "end": str(idx[-1]), "base": {"crash": r(base_crash * 100, 1),
-            "f24": r(base_f24 * 100, 1), "n24": r(base_n24 * 100, 1), "n": len(base),
-            "crash45": r(base45_crash * 100, 1)},
+                          "crash": fs["crash"], "crashEnt": fs["crashEnt"],
+                          "f24": r(fs["f24"] * 100, 0) if "f24" in fs else None,
+                          "dd": r(fs["dd"] * 100, 0), "peak": r(fs["peak"] * 100, 0),
+                          "sofar": r((np.exp(np.nansum(L[e["i"] + 1:e["i"] + 25, e["j"]])) - 1) * 100, 0),
+                          "months": fs["months"], "open": fs["months"] < 24,
+                          "gsy": bool(e["run5"] is not None and e["run5"] > 0.5)})
+    return {"start": str(idx[0]), "end": str(idx[-1]), "base": base,
             "thr": thr_tab, "chars": chars, "multi": {k: v for k, v in multi.items() if k not in ("mu", "sd")},
             "now": now, "named": named,
-            "episodes": [{"ind": a, "date": b, "run": r(c * 100, 0), "crash": int(d_), "f24": r(f * 100, 0)}
-                         for a, b, c, d_, f in zip(df["ind"], df["date"], df["run"], df["crash"], df["f24"])]}
+            "episodes": [{"ind": a_, "date": b_, "run": r(c_ * 100, 0), "crash": int(d_), "f24": r(f_ * 100, 0)}
+                         for a_, b_, c_, d_, f_ in zip(df["ind"], df["date"], df["run"], df["crash"], df["f24"])]}
 
 
-if __name__ == "__main__":
-    fetch()
-    if "--fetch" not in sys.argv:
-        analyze()
+def xbrl_quarterly():
+    """Quarterly revenue / operating income / net income from XBRL frames, so
+    valuation can use TTM fundamentals instead of a stale annual figure."""
+    rows = []
+    tags = {"rev": ("RevenueFromContractWithCustomerExcludingAssessedTax", "Revenues", "SalesRevenueNet"),
+            "oi": ("OperatingIncomeLoss",), "ni": ("NetIncomeLoss",)}
+    for kind, tt in tags.items():
+        for y in range(2013, 2027):
+            for q in (1, 2, 3, 4):
+                for prio, tag in enumerate(tt):
+                    d = cached_json(f"q_{tag}_CY{y}Q{q}",
+                                    f"https://data.sec.gov/api/xbrl/frames/us-gaap/{tag}/USD/CY{y}Q{q}.json")
+                    for o in (d or {}).get("data", []):
+                        rows.append((o["cik"], o["end"], float(o["val"]), kind, prio))
+            for prio, tag in enumerate(tt):          # annual, to impute Q4
+                d = cached_json(f"a_{tag}_CY{y}",
+                                f"https://data.sec.gov/api/xbrl/frames/us-gaap/{tag}/USD/CY{y}.json")
+                for o in (d or {}).get("data", []):
+                    rows.append((o["cik"], o["end"], float(o["val"]), kind + "_a", prio))
+    df = pd.DataFrame(rows, columns=["cik", "end", "val", "kind", "prio"])
+    df["end"] = pd.to_datetime(df["end"])
+    # one value per firm-period-kind: the highest-priority tag, not the maximum
+    # (mixing gross and net revenue definitions across tags is a real hazard)
+    df = df.sort_values("prio").drop_duplicates(["cik", "end", "kind"], keep="first")
+    return df
+
+
+def ttm_panel(q: pd.DataFrame, kind: str) -> pd.DataFrame:
+    """TTM sums with an availability date (quarter end + 60 days, i.e. when the
+    10-Q would have been filed). Missing Q4s are imputed from the annual figure
+    minus the first three quarters, which is how most filers report."""
+    qq = q[q["kind"] == kind][["cik", "end", "val"]].copy()
+    ann = q[q["kind"] == kind + "_a"][["cik", "end", "val"]].rename(columns={"val": "ann"})
+    qq["yr"] = qq["end"].dt.year
+    ann["yr"] = ann["end"].dt.year
+    cnt = qq.groupby(["cik", "yr"]).agg(n=("val", "size"), s=("val", "sum")).reset_index()
+    need = cnt[cnt["n"] == 3].merge(ann, on=["cik", "yr"], how="inner")
+    imp = need.assign(val=need["ann"] - need["s"])[["cik", "end", "val"]]
+    qq = pd.concat([qq[["cik", "end", "val"]], imp], ignore_index=True)
+    qq = qq.drop_duplicates(["cik", "end"]).sort_values(["cik", "end"])
+    qq["ttm"] = qq.groupby("cik")["val"].transform(lambda s: s.rolling(4).sum())
+    qq["avail"] = qq["end"] + pd.Timedelta(days=60)
+    return qq.dropna(subset=["ttm"])[["cik", "avail", "ttm"]].sort_values("avail")
