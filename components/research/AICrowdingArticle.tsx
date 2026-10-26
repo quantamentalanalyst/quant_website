@@ -2,6 +2,7 @@ import Link from "next/link";
 import { site } from "@/lib/site";
 import type { ResearchMeta } from "@/lib/content";
 import Figure from "./Figure";
+import SummaryBox from "./SummaryBox";
 import { TeX, TeXBlock } from "./TeX";
 import { Num } from "@/components/ui/Num";
 import LineChart from "./charts/LineChart";
@@ -196,6 +197,8 @@ export default function AICrowdingArticle({ meta }: { meta: ResearchMeta }) {
           is. And since spring 2026 the most AI-intensive names have started to trade as a bloc.
         </p>
       </header>
+
+      <SummaryBox items={meta.summary} />
 
       {/* 00 */}
       <Section n="00" title="Executive summary" />

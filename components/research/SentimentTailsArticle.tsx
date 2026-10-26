@@ -2,6 +2,7 @@ import Link from "next/link";
 import { site } from "@/lib/site";
 import type { ResearchMeta } from "@/lib/content";
 import Figure from "./Figure";
+import SummaryBox from "./SummaryBox";
 import { TeX, TeXBlock } from "./TeX";
 import { Num } from "@/components/ui/Num";
 import LineChart from "./charts/LineChart";
@@ -125,6 +126,8 @@ export default function SentimentTailsArticle({ meta }: { meta: ResearchMeta }) 
         <h1 className="text-[26px] leading-[1.15] text-text">{meta.title}</h1>
         <p className="mt-4 max-w-[74ch] font-mono text-[13px] leading-[22px] text-text-dim">{meta.abstract}</p>
       </header>
+
+      <SummaryBox items={meta.summary} />
 
       {/* 00 Executive summary */}
       <Section n="00" title="Executive summary" />

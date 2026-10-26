@@ -1,6 +1,7 @@
 import { site } from "@/lib/site";
 import type { ResearchMeta } from "@/lib/content";
 import Figure from "./Figure";
+import SummaryBox from "./SummaryBox";
 import { TeX, TeXBlock } from "./TeX";
 import LineChart from "./charts/LineChart";
 import BarH from "./charts/BarH";
@@ -83,6 +84,8 @@ export default function EquityDurationArticle({ meta }: { meta: ResearchMeta }) 
         <h1 className="text-[26px] leading-[1.15] text-text">{meta.title}</h1>
         <p className="mt-4 max-w-[72ch] font-mono text-[13px] leading-[22px] text-text-dim">{meta.abstract}</p>
       </header>
+
+      <SummaryBox items={meta.summary} />
 
       {/* Thesis + definition box */}
       <Section n="00" title="Thesis" />

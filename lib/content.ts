@@ -9,6 +9,7 @@ export type ResearchMeta = {
   title: string;
   date: string;
   abstract: string;
+  summary?: string[]; // three bullets shown in the article's Summary box
   tags: string[];
   driver?: string; // profit | rates | sentiment | macro | crowding
   status?: "published" | "draft";
@@ -53,6 +54,7 @@ export async function getAllResearch(): Promise<ResearchMeta[]> {
     title: String(data.title ?? slug),
     date: typeof data.date === "string" ? data.date : String(data.date ?? "").slice(0, 10),
     abstract: String(data.abstract ?? ""),
+    summary: Array.isArray(data.summary) ? (data.summary as string[]).map(String) : undefined,
     tags: Array.isArray(data.tags) ? (data.tags as string[]) : [],
     driver: data.driver ? String(data.driver) : undefined,
     status: data.status === "draft" ? "draft" : "published",

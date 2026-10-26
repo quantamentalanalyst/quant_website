@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAllResearch } from "@/lib/content";
+import SummaryBox from "@/components/research/SummaryBox";
 import EquityDurationArticle from "@/components/research/EquityDurationArticle";
 import ProfitDuPontArticle from "@/components/research/ProfitDuPontArticle";
 import MacroRegimeArticle from "@/components/research/MacroRegimeArticle";
@@ -58,6 +59,7 @@ export default async function ResearchArticle({ params }: { params: Promise<{ sl
             <h1 className="text-[24px] leading-[1.15] text-text">{meta.title}</h1>
             <p className="mt-4 font-mono text-[13px] leading-[22px] text-text-dim">{meta.abstract}</p>
           </header>
+          <SummaryBox items={meta.summary} />
           <p className="mt-6 font-mono text-[12px] text-text-faint">Full text in preparation.</p>
         </article>
       )}
