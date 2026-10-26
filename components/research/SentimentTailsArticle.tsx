@@ -113,7 +113,7 @@ export default function SentimentTailsArticle({ meta }: { meta: ResearchMeta }) 
   const TERC = ["Calm", "Neutral", "Fear"] as const;
 
   return (
-    <article className="mx-auto max-w-[880px] pb-16">
+    <article className="research-article mx-auto max-w-[880px] pb-16">
       <header className="border-b border-rule-strong pb-5">
         <div className="mb-3 flex flex-wrap items-center gap-3 text-[10px]">
           <span className="bg-accent px-1.5 py-0.5 font-medium uppercase tracking-[0.1em] text-bg">driver · {meta.driver}</span>
@@ -124,38 +124,10 @@ export default function SentimentTailsArticle({ meta }: { meta: ResearchMeta }) 
           <span className="text-text-faint">{site.name}</span>
         </div>
         <h1 className="text-[26px] leading-[1.15] text-text">{meta.title}</h1>
-        <p className="mt-4 max-w-[74ch] font-mono text-[13px] leading-[22px] text-text-dim">{meta.abstract}</p>
       </header>
 
       <SummaryBox items={meta.summary} />
 
-      {/* 00 Executive summary */}
-      <Section n="00" title="Executive summary" />
-      <P>
-        “Sentiment” gets used as if it were one number. It is at least three different instruments —
-        what households <em>say</em> (surveys), what option and credit markets <em>charge</em>{" "}
-        (VIX, spreads), and what the news flow <em>worries about</em> (policy uncertainty) — and right
-        now those instruments disagree with each other more than at any point in the sample. This piece
-        builds a five-proxy fear composite the same way the{" "}
-        <Link href="/research/2026-05-30-macro-regime" className="text-link no-underline hover:opacity-80">macro-regime piece</Link>{" "}
-        built its growth composite — expanding-window z-scores, so the reading at month <TeX>{"t"}</TeX>{" "}
-        uses only data available at <TeX>{"t"}</TeX> — and asks the question in a form that can fail:
-        does the level predict the forward 3-month S&amp;P return, and if not, what exactly does it
-        predict? This revision also turns the referee's guns on its own results: a vol-clustering
-        control, four timing conventions, a beta hedge on the factor spreads, and a dummy for the
-        Michigan survey's 2024 redesign. Two of the original headline numbers do not survive, and the
-        text says so.
-      </P>
-      <ul className="mb-4 ml-1 space-y-1.5 font-mono text-[13px] leading-[20px] text-text">
-        {[
-          <>The level predicts almost nothing, under any timing convention. The composite's correlation with the forward 3-month return is <Em>{fearLL.c3!.toFixed(2)}</Em>; the top-minus-bottom quintile spread is +{s51.est}pp (bootstrap CI [{s51.lo}, {s51.hi}]) and ranges only {timing.rows[2]!.spread} to +{timing.rows[3]!.spread}pp across lagged-input, market-only and PCA variants. Out of sample the linear signal scores {oos.r2Lin}%.</>,
-          <>Fear prices variance — literally, and not as a vol-clustering artifact. A 1σ rise predicts <Em>+{vRV.bFear} points</Em> of forward 3-month realized volatility (HAC t = {vRV.tFear}), and the 90th-percentile return coefficient is +{t90.beta}pp raw and <Em>+{c90.beta}pp</Em> after controlling for trailing realized vol (CI [{c90.lo}, {c90.hi}]). The composite knows something trailing vol does not.</>,
-          <>Six horses, one survivor: news-based policy uncertainty, at <Em>+{epuMulti.beta}pp</Em> per σ (t = {epuMulti.t}), Bonferroni-adjusted p = {epuBase.pBonf}. It survives a one-month lag (t = {epuLag.t}) and both crisis exclusions; detrending is its weakest cut (t = {epuDetr.t}). The variance risk premium — the canonical benchmark — does not place (t = {vrpUni.t}).</>,
-          <>Two honest deaths. The Michigan “vibecession” gap shrinks from {mns(cur.gapZ!)}σ to <Em>{mns(rds.gapZ!)}σ</Em> once the survey's 2024 phone-to-web redesign is dummied out (shift = {mns(rds.dummyCoef!)} points, t = {rds.dummyT}). And the fear-tercile factor spreads mostly collapse under a beta hedge — cyclicals−defensives goes from +{cycDef.detail.Fear.mean}% to {mns(cycDef.adj.Fear.mean!)}% — so what fear buys in the cross-section is largely market beta itself.</>,
-        ].map((t, i) => (
-          <li key={i} className="flex gap-2"><span className="text-accent">{String(i + 1).padStart(2, "0")}</span><span>{t}</span></li>
-        ))}
-      </ul>
 
       {/* 01 five instruments */}
       <Section n="01" title="One word, five instruments" />

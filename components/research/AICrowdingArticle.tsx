@@ -178,7 +178,7 @@ export default function AICrowdingArticle({ meta }: { meta: ResearchMeta }) {
   };
 
   return (
-    <article className="mx-auto max-w-[880px] pb-16">
+    <article className="research-article mx-auto max-w-[880px] pb-16">
       <header className="border-b border-rule-strong pb-5">
         <div className="mb-3 flex flex-wrap items-center gap-3 text-[10px]">
           <span className="bg-accent px-1.5 py-0.5 font-medium uppercase tracking-[0.1em] text-bg">driver · {meta.driver}</span>
@@ -189,31 +189,11 @@ export default function AICrowdingArticle({ meta }: { meta: ResearchMeta }) {
           <span className="text-text-faint">{site.name}</span>
         </div>
         <h1 className="text-[26px] leading-[1.15] text-text">{meta.title}</h1>
-        <p className="mt-4 max-w-[74ch] font-mono text-[13px] leading-[22px] text-text-dim">
-          Is AI a factor or a crowd? Exposure measured point-in-time from {S.docs.toLocaleString()} 10-K
-          filings says: neither, exactly. The AI long-short is largely a style bundle when priced against
-          the published factors — but those factors now contain the AI names, and against styles rebuilt
-          without them the alpha returns. The median AI firm is not expensive; the cap-weighted AI book
-          is. And since spring 2026 the most AI-intensive names have started to trade as a bloc.
-        </p>
       </header>
 
       <SummaryBox items={meta.summary} />
 
-      {/* 00 */}
-      <Section n="00" title="Executive summary" />
-      <ul className="mb-4 ml-1 space-y-1.5 font-mono text-[13px] leading-[20px] text-text">
-        {[
-          <>Disclosure diffused, then changed character. AI mentions went from <Em>{a15.share}%</Em> of filings in 2015 to <Em>{a26.share}%</Em> in 2026 — but the Business section's share of those mentions fell from {mix16.year === 2016 ? adoption.find((a) => a.year === 2016)!.bShare : null}% to <Em>{a26.bShare}%</Em>. By 2026, {a26.shareR}% of filers discuss AI in Risk Factors against {a26.shareB}% in Business. Most of the diffusion is boilerplate about somebody else's AI.</>,
-          <>The published factors have partly become the AI trade, so "AI is just old styles" is partly circular. Against FF5+momentum the long-short's alpha is {sgn(sp.AIX.full!.alpha)}%/yr (t = {sp.AIX.full!.tA}) with R² {sp.AIX.full!.r2}%. Against style factors <em>rebuilt without AI-leg stocks</em>, alpha is <Em>{sgn(sp.exAI.full!.alpha)}%/yr</Em> (t = {sp.exAI.full!.tA}) and R² falls to {sp.exAI.full!.r2}%. Sorting on Business-section language only, post-ChatGPT alpha is <Em>{sgn(sp.AIXB.post!.alpha)}%/yr (t = {sp.AIXB.post!.tA})</Em>.</>,
-          <>The cohort's market-cap gain was not mostly re-rating. With TTM fundamentals and margins separated, the Nov-2022 AI cohort's {sgn(dH.cap)} log points split into {sgn(dH.sales)} sales, <Em>{sgn(dH.margin)} margin</Em> and {sgn(dH.mult)} multiple. Against the low-AI leg — which re-rated <em>more</em> ({sgn(dL.mult)}) — the AI cohort's excess gain is {sgn(exSales, 1)} sales and {sgn(exMargin, 1)} margin against {sgn(exMult, 1)} multiple.</>,
-          <>Crowded on concentration and comovement, not on the median multiple. The industry-adjusted median valuation spread is {sgn(dValI.last, 2)} ({ordinal(dValI.pct)} percentile) while the float-weighted spread is <Em>{sgn(dValVW.last, 2)}</Em> ({ordinal(dValVW.pct)}). Factor volatility is at its sample high ({dVol.last}%), and since spring 2026 the top-decile core comoves beyond size- <em>and</em> tech-matched peers (<Em>{sgn(dExTech.last, 3)}</Em>, {ordinal(dExTech.pct)} percentile) — exploratory, but it strengthens under every control I could think to impose.</>,
-          <>Nothing predicts, and the one pattern that looked like it did was an artefact. Run-up reversal ({sgn(pRun12.b)}pp per σ at 12 months, HAC t = {mns(pRun12.t)}) has a bootstrap p of <Em>{pRun12.p}</Em> once the null reproduces Stambaugh bias; no cell survives Romano-Wolf (min p = {S.predMinRW}).</>,
-          <>History prices the tail, not the mean. Under the Greenwood-Shleifer-You design — a 40% drawdown from the running peak — two-year doublings crash <Em>{tBase.crash}%</Em> of the time (CI {tBase.lo}–{tBase.hi}) against a volatility-matched base rate of {tBase.volMatched}%, and <Em>{tNet.crash}%</Em> when the run-up also beats the market by 100%. Computers are inside a live episode; semiconductors peaked just under the bar.</>,
-        ].map((t, i) => (
-          <li key={i} className="flex gap-2"><span className="text-accent">{String(i + 1).padStart(2, "0")}</span><span>{t}</span></li>
-        ))}
-      </ul>
+
       <Revised>
         This is the second draft. Referee comments changed four headline numbers, and the text says so at
         each point rather than quietly restating them: the re-rating share of the AI cohort's gain (§05),

@@ -66,7 +66,7 @@ export default function MacroRegimeArticle({ meta }: { meta: ResearchMeta }) {
   const GRP = ["Reflation", "Goldilocks", "Slowdown", "Stagflation"] as const;
 
   return (
-    <article className="mx-auto max-w-[880px] pb-16">
+    <article className="research-article mx-auto max-w-[880px] pb-16">
       <header className="border-b border-rule-strong pb-5">
         <div className="mb-3 flex flex-wrap items-center gap-3 text-[10px]">
           <span className="bg-accent px-1.5 py-0.5 font-medium uppercase tracking-[0.1em] text-bg">driver · {meta.driver}</span>
@@ -77,41 +77,16 @@ export default function MacroRegimeArticle({ meta }: { meta: ResearchMeta }) {
           <span className="text-text-faint">{site.name}</span>
         </div>
         <h1 className="text-[26px] leading-[1.15] text-text">{meta.title}</h1>
-        <p className="mt-4 max-w-[74ch] font-mono text-[13px] leading-[22px] text-text-dim">{meta.abstract}</p>
       </header>
 
       <SummaryBox items={meta.summary} />
 
-      {/* 00 Executive summary */}
-      <Section n="00" title="Executive summary" />
-      <P>
-        An equity investor is handed a firehose of macro — payrolls, CPI, core PCE, jobless claims,
-        retail sales, ISM, sentiment — each release moving the tape for an afternoon. This piece makes
-        two claims and is careful about the difference between them. <span className="text-text">Negative
-        claim:</span> measured unconditionally, an individual macro indicator's <em>level</em> carries
-        almost no information about the forward three-month equity return. <span className="text-text">Positive
-        claim:</span> the joint <em>regime</em> — whether growth is accelerating and whether inflation
-        is rising — does sort forward returns, but the only statistically defensible statement is{" "}
-        <em>binary</em>: stagflation is the one quadrant that does not pay. Everything here is built on{" "}
-        <em>real-time</em> (expanding-window) standardization, so the regime label at month <TeX>{"t"}</TeX>{" "}
-        uses only data available at <TeX>{"t"}</TeX> — the result is not an artifact of look-ahead.
-      </P>
-      <ul className="mb-4 ml-1 space-y-1.5 font-mono text-[13px] leading-[20px] text-text">
-        {[
-          <>Unconditionally, prints are weak. The largest absolute correlation between any indicator level and the forward 3-month S&amp;P return is <Em>{leadTop.corr!.toFixed(2)}</Em> ({leadTop.label.toLowerCase()}); corrected for the overlap in monthly-sampled 3-month returns (effective n ≈ {leadTop.nEff}), even that is marginal (t ≈ {leadTop.tEff}) — and carries the “wrong”, reaction-function sign.</>,
-          <>Regime sorts returns, but the robust result is binary. <Em>Stagflation</Em> is the only quadrant with a negative mean ({sgn(stag.mean!)}%, {stag.hit}% hit); the other three pay +{gold.mean}% to +{refl.mean}%. Their bootstrap 95% intervals overlap heavily, so the four-way <em>ranking</em> is within noise — do not over-read “reflation is best.”</>,
-          <>The spread is real and survives the look-ahead fix. Non-stagflation regimes beat stagflation by <Em>+{regReg.joint.est}pp</Em> per quarter (Newey-West t = {regReg.joint.t}); the expanding-window estimate ({sgn(stag.mean!)}%) matches the full-sample one ({sgn(robustness.find((r) => r.label.startsWith("Full-sample"))!.stag!)}%), and stagflation is last in all {robustness.length} robustness variants.</>,
-          <>Today is <Em>reflation</Em> but low-confidence — growth is only {cur.growth.sigma}σ into acceleration. Core PCE re-accelerating to 3.3% is the swing variable; consumer sentiment sits 1.8σ below trend against solid hard data, the widest non-recession hard/soft gap.</>,
-        ].map((t, i) => (
-          <li key={i} className="flex gap-2"><span className="text-accent">{String(i + 1).padStart(2, "0")}</span><span>{t}</span></li>
-        ))}
-      </ul>
 
       {/* 01 unconditional weakness */}
       <Section n="01" title="Macro prints are weak standalone signals" />
       <P>
         Start with the negative result, because it motivates everything after. For each indicator I
-        compute the Pearson correlation between its current reading and the <em>subsequent</em>
+        compute the Pearson correlation between its current reading and the <em>subsequent</em>{" "}
         three-month S&amp;P 500 return, 2000–2026 (Fig. 1, Table 1). Every correlation is small: the
         largest magnitude is <Em>{leadTop.corr!.toFixed(2)}</Em>, for initial claims. And the signs are perverse —
         the only positive “leaders” are the bad-news indicators (claims, unemployment, VIX). That is

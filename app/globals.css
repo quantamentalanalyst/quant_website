@@ -126,3 +126,24 @@
   text-transform: uppercase;
   color: var(--color-text-dim);
 }
+
+/* ---------------------------------------------------------------------------
+   Research articles use the Bloomberg terminal convention: body copy in amber,
+   hyperlinks in blue. Overriding the --color-text token inside the article
+   recolors every `text-text` utility at once — prose, tables, equations — while
+   the dim/faint greys (captions, metadata), the data cyan and the P&L
+   green/red keep their own meaning. The headline stays neutral.
+   --------------------------------------------------------------------------- */
+.research-article {
+  --color-text: var(--color-accent);
+}
+.research-article header h1 {
+  color: #e4e4e4;
+}
+.research-article a {
+  color: var(--color-link);
+}
+.research-article a:hover {
+  color: var(--color-link);
+  opacity: 0.8;
+}

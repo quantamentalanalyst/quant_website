@@ -45,7 +45,7 @@ export default async function ResearchArticle({ params }: { params: Promise<{ sl
         <AICrowdingArticle meta={meta} />
       ) : (
         // Draft fallback for entries without a full data-bound article yet.
-        <article className="mx-auto max-w-[760px] pb-16">
+        <article className="research-article mx-auto max-w-[760px] pb-16">
           <header className="border-b border-rule-strong pb-5">
             <div className="mb-3 flex items-center gap-3 text-[10px] text-text-faint">
               {meta.driver && (
@@ -57,7 +57,6 @@ export default async function ResearchArticle({ params }: { params: Promise<{ sl
               <span>· draft</span>
             </div>
             <h1 className="text-[24px] leading-[1.15] text-text">{meta.title}</h1>
-            <p className="mt-4 font-mono text-[13px] leading-[22px] text-text-dim">{meta.abstract}</p>
           </header>
           <SummaryBox items={meta.summary} />
           <p className="mt-6 font-mono text-[12px] text-text-faint">Full text in preparation.</p>

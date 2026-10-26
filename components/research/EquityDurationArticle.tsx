@@ -71,7 +71,7 @@ export default function EquityDurationArticle({ meta }: { meta: ResearchMeta }) 
   }));
 
   return (
-    <article className="mx-auto max-w-[880px] pb-16">
+    <article className="research-article mx-auto max-w-[880px] pb-16">
       <header className="border-b border-rule-strong pb-5">
         <div className="mb-3 flex flex-wrap items-center gap-3 text-[10px]">
           <span className="bg-accent px-1.5 py-0.5 font-medium uppercase tracking-[0.1em] text-bg">driver · {meta.driver}</span>
@@ -82,7 +82,6 @@ export default function EquityDurationArticle({ meta }: { meta: ResearchMeta }) 
           <span className="text-text-faint">{site.name}</span>
         </div>
         <h1 className="text-[26px] leading-[1.15] text-text">{meta.title}</h1>
-        <p className="mt-4 max-w-[72ch] font-mono text-[13px] leading-[22px] text-text-dim">{meta.abstract}</p>
       </header>
 
       <SummaryBox items={meta.summary} />
