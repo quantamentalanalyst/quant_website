@@ -77,11 +77,14 @@ export default function LineChart({
     if (hoverX == null) return null;
     const t = x.invert(hoverX);
     const bi = d3.bisector<{ t: Date }, Date>((d) => d.t).left;
-    return parsed.map((s) => {
+    // A series can legitimately be empty (a filtered field that is null across
+    // the whole sample); skip it rather than indexing past the end.
+    return parsed.flatMap((s) => {
+      if (s.pts.length === 0) return [];
       const i = Math.min(Math.max(bi(s.pts, t), 0), s.pts.length - 1);
       const p = s.pts[i]!;
       const y = (s.axis ?? "left") === "right" ? yR : yL;
-      return { name: s.name, color: s.color, x: x(p.t), y: y(p.v), v: p.v, date: p.date, axis: s.axis ?? "left" };
+      return [{ name: s.name, color: s.color, x: x(p.t), y: y(p.v), v: p.v, date: p.date, axis: s.axis ?? "left" }];
     });
   }, [hoverX, parsed, x, yL, yR]);
 

@@ -193,14 +193,6 @@ export default function AICrowdingArticle({ meta }: { meta: ResearchMeta }) {
 
       <SummaryBox items={meta.summary} />
 
-
-      <Revised>
-        This is the second draft. Referee comments changed four headline numbers, and the text says so at
-        each point rather than quietly restating them: the re-rating share of the AI cohort's gain (§05),
-        the spanning verdict (§04), the crash frequency (§08) and the run-up reversal (§07). Where a
-        result moved, the first-draft number is shown alongside the corrected one.
-      </Revised>
-
       {/* 01 */}
       <Section n="01" title="Two hypotheses, stated so they can fail" />
       <P>

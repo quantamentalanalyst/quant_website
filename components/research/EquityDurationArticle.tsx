@@ -56,8 +56,10 @@ const Th = ({ children, r }: { children: React.ReactNode; r?: boolean }) => (
 );
 
 export default function EquityDurationArticle({ meta }: { meta: ResearchMeta }) {
-  const rollSectors = ["XLRE", "XLU", "XLP", "XLK", "XLF"] as const;
-  const rollColors: Record<string, string> = { XLRE: AMBER, XLU: CYAN, XLP: POS, XLK: NEG, XLF: LINK };
+  // the sectors `analysis/equity_duration.py` estimates rolling betas for;
+  // XLP is in the sub-period table but not the rolling series
+  const rollSectors = ["XLRE", "XLU", "XLE", "XLK", "XLF"] as const;
+  const rollColors: Record<string, string> = { XLRE: AMBER, XLU: CYAN, XLE: POS, XLK: NEG, XLF: LINK };
   const xlk = multifactor.find((m) => m.sym === "XLK")!;
   const xlre = multifactor.find((m) => m.sym === "XLRE")!;
   const xlf = multifactor.find((m) => m.sym === "XLF")!;
