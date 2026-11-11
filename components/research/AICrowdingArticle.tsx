@@ -61,14 +61,6 @@ function Takeaway({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
-function Revised({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="my-5 border-l-2 border-rule-strong bg-bg-sunken px-4 py-3">
-      <div className="section-label mb-1.5 text-text-dim">revision note</div>
-      <p className="font-mono text-[12.5px] leading-[20px] text-text-dim">{children}</p>
-    </div>
-  );
-}
 const Em = ({ children }: { children: React.ReactNode }) => <span className="text-data">{children}</span>;
 const mns = (x: number | null | undefined, d?: number) =>
   x == null ? "—" : (x < 0 ? "−" : "") + (d == null ? Math.abs(x) : Math.abs(x).toFixed(d));
@@ -348,16 +340,6 @@ export default function AICrowdingArticle({ meta }: { meta: ResearchMeta }) {
         slope is {sgn(q90.b)}pp (t = {q90.t}) against {sgn(event.qreg["0.5"]!.b)}pp at the median.
         Directionally right, statistically marginal.
       </P>
-      <Revised>
-        First draft: “pre-ChatGPT disclosure did not predict the repricing (−0.3pp per σ, t = −0.3).”
-        Corrected: disclosure predicted <em>raw and market-adjusted</em> abnormal returns
-        ({sgn(event.regMkt.b)}pp per σ, t = {event.regMkt.t}); it does not survive six-factor adjustment or
-        industry fixed effects, and the honest reading is that those controls absorb the event rather
-        than that the signal is empty. The safest statement remains the narrow one: pre-ChatGPT
-        disclosure intensity was a weak ex-ante signal, and a text screen built in 2022 would have been a
-        blunt instrument — as Eisfeldt, Schubert and Zhang (2023) find with labor-based exposure, what
-        “AI exposure” means depends entirely on the instrument.
-      </Revised>
       <Figure n={2} title="Abnormal return, Dec-2022 → Jun-2023, by pre-ChatGPT AI exposure" source={`${SEC}, ${YH}, ${KF}; ${CALC}. Six-factor betas from 156 weekly returns before the event; bars are six-factor CARs, the conservative version. Tags: bootstrap 95% CI · n.`}>
         <BarH
           rows={event.groups.map((g) => ({ label: g.grp === "none" ? "no mention" : `${g.grp} (${g.expoLo}–${g.expoHi})`, value: g.car!, tag: `${ci(g.lo, g.hi)} · ${g.n}` }))}
@@ -524,15 +506,6 @@ export default function AICrowdingArticle({ meta }: { meta: ResearchMeta }) {
         broadly, which includes acquisitions and working capital, not only the data-center capex it is
         tempting to name.
       </P>
-      <Revised>
-        First draft: “six factors explain 70% of the AI long-short, so AI is a bundle of old styles, with
-        no significant alpha.” Corrected: the published factors explain {sp.AIX.post!.r2}% of its monthly
-        return <em>variation</em> post-ChatGPT — which is not the same as “70% of the portfolio is old
-        styles” — and that number is partly circular, because the AI names are now inside those factors.
-        Against ex-AI styles the alpha is {sgn(sp.exAI.full!.alpha)}%/yr (t = {sp.exAI.full!.tA}). The
-        defensible claim is “insufficient evidence for a distinct, priced AI premium in{" "}
-        {aix.full!.n} months,” not “AI is not a factor.”
-      </Revised>
       <Takeaway>
         Hedge the styles you can name before calling anything AI alpha — but do not assume the standard
         factor suite is a clean hedge, because a fifth of the market's cap now sits on the AI side of it.
@@ -604,14 +577,6 @@ export default function AICrowdingArticle({ meta }: { meta: ResearchMeta }) {
         </tbody>
       </Table>
       <Cap>Table 6. Aggregate log decomposition (eq. 4), log points ×100, Nov-2022 → {crowding.asOf}; cohort fixed at Nov-2022, firms with valid market value, TTM revenue and positive TTM operating income at both ends. Market value = unadjusted price × cover-page shares. Intervals: firm bootstrap (2,000 resamples). This is a market-capitalization decomposition, not a return decomposition: it excludes dividends and is affected by issuance and buybacks. Source: {SEC}, {YH}; {CALC}.</Cap>
-      <Revised>
-        First draft: “the AI cohort's value rose 68.8 log points: 28.2 from sales and 40.6 from a higher
-        price-to-sales multiple — 59% re-rating.” That used the latest <em>annual</em> revenue against a
-        current price and a multiple that hides margins. On TTM fundamentals the same price-to-sales
-        framing would now read {sgn(dH.rerate_ps)} of {sgn(dH.cap)}; separating margin puts the true
-        multiple term at {sgn(dH.mult)}, and the AI cohort's excess gain over the low-AI leg becomes
-        mostly margin and sales. The first draft's most quotable sentence was wrong.
-      </Revised>
 
       {/* 06 */}
       <Section n="06" title="Is it a crowd? Concentration, comovement — and which valuation you pick" />
@@ -792,11 +757,6 @@ export default function AICrowdingArticle({ meta }: { meta: ResearchMeta }) {
         answer the question. That is not a finding about crowding; it is a finding about the sample, and
         it is why §08 goes looking for more data instead of more p-values.
       </P>
-      <Revised>
-        First draft: “the most consistent pattern is reversal after run-ups (−6.5pp per σ, bootstrap CI
-        excluding zero), suggestive but not surviving Bonferroni.” Corrected: the pattern is what the
-        null itself generates (p = {pRun12.p}). The negative sign was mostly econometrics, not crowding.
-      </Revised>
 
       {/* 08 */}
       <Section n="08" title="A century of run-ups: what happens after an industry doubles" />
@@ -832,15 +792,6 @@ export default function AICrowdingArticle({ meta }: { meta: ResearchMeta }) {
         ({sgn(t150.n24)}pp, CI {ci(t150.nlo, t150.nhi)}). Doubling does not predict low average returns;
         it predicts a fatter left tail.
       </P>
-      <Revised>
-        First draft: “100%+ two-year run-ups, raw and net of market, crash 26% of the time against a 7.9%
-        base rate, 46% above 150%.” Two things were wrong. The crash was anchored on the entry price
-        rather than the running peak, which misses exactly the episodes bubble research is about, and
-        there was no five-year filter, so the episode set differed. And the unconditional base rate was
-        the wrong foil, because run-up industries are volatile industries. Corrected: {tBase.crash}%
-        against a volatility-matched {tBase.volMatched}%, rising to {tNet.crash}% when the run-up also
-        beats the market by 100%.
-      </Revised>
       <Figure n={6} title="Probability of a 40% drawdown from peak within two years" source={`${KF}; ${CALC}. Tags: year-block bootstrap 95% CI · episodes. Unconditional rate across all industry-months with ≥10 firms: ${base.crash}%; volatility-matched rates in Table 10.`}>
         <BarH
           rows={[{ label: "unconditional", value: base.crash!, tag: `${base.n.toLocaleString()} ind-months`, faint: true },
