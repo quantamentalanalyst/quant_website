@@ -17,6 +17,7 @@ import valuation from "@/content/research/2026-04-15-profit-dupont/data/valuatio
 import forward from "@/content/research/2026-04-15-profit-dupont/data/forward.json";
 import rates from "@/content/research/2026-04-15-profit-dupont/data/rates.json";
 import attribution from "@/content/research/2026-04-15-profit-dupont/data/attribution.json";
+import { Disclaimer } from "./Disclaimer";
 
 const AMBER = "var(--color-accent)";
 const CYAN = "var(--color-data)";
@@ -464,7 +465,7 @@ export default function ProfitDuPontArticle({ meta }: { meta: ResearchMeta }) {
         <p><span className="text-text-faint">Source &amp; construction.</span> SEC EDGAR company-facts (XBRL from 10-Ks), Yahoo monthly prices, FRED/Yahoo 10-year yield. All denominators use <em>average</em> beginning-and-ending balances; ratios are trailing-3y for the snapshot to damp single-year noise. ROIC = NOPAT / avg invested capital (operating income, pre-tax income where un-tagged, taxed at the effective rate). Net debt = total debt − cash − short-term investments.</p>
         <p><span className="text-text-faint">Classifier &amp; tests.</span> Road = largest deviation of log(margin/turnover/multiplier) from the cross-section median. Forward tests classify each firm-year and measure median forward outcomes; persistence is pooled OLS with sector FE; the rate test regresses sector-neutral long-short portfolio returns on market and Δ10y with Newey-West HAC t (6 lags). Quality score is a six-term cross-sectional z-composite.</p>
         <p><span className="text-text-faint">Caveats.</span> Single-vendor XBRL tagging varies; some firms lack a clean OperatingIncome or D&amp;A tag (EV/EBITDA, op-margin then null). {distorted.length} firms are denominator-distorted (buyback-shrunk or negative equity) and excluded from ROE statistics. Trailing P/E is noisy for one-off-earnings years. Forward returns are survivor-biased upward in level; the cross-<em>road</em> differences are the signal. Reproducible via <code className="text-text-dim">analysis/dupont_roe.py</code>.</p>
-        <p className="pt-1 text-text-faint">This is research, not investment advice.</p>
+        <Disclaimer />
       </div>
     </article>
   );

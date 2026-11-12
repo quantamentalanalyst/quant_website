@@ -20,6 +20,7 @@ import confidence from "@/content/research/2026-05-30-macro-regime/data/confiden
 import hardsoft from "@/content/research/2026-05-30-macro-regime/data/hardsoft.json";
 import factors from "@/content/research/2026-05-30-macro-regime/data/factors.json";
 import alloc from "@/content/research/2026-05-30-macro-regime/data/alloc.json";
+import { Disclaimer } from "./Disclaimer";
 
 const AMBER = "var(--color-accent)";
 const CYAN = "var(--color-data)";
@@ -551,7 +552,7 @@ export default function MacroRegimeArticle({ meta }: { meta: ResearchMeta }) {
         <p><span className="text-text-faint">Regime.</span> Growth composite = equal-weight mean of <em>expanding-window</em> z-scores of YoY INDPRO, PAYEMS, RSAFS; growth direction = sign of its 3-month change; inflation direction = sign of the 3-month change in core-CPI YoY. The expanding window standardizes each month using only data through that month — no look-ahead. Full-sample and rolling-10y standardizations appear only as robustness rows.</p>
         <p><span className="text-text-faint">Inference.</span> Cell means carry circular block-bootstrap 95% intervals (block 6 months, 3,000 resamples) to respect regime persistence and return overlap. The regime regression uses Newey-West HAC standard errors (Bartlett, {regReg.hacLag} monthly lags) covering the 3-month-return overlap and persistence. Unconditional correlations report an effective n ≈ n/3 and the corresponding t.</p>
         <p><span className="text-text-faint">Caveats.</span> Classification uses revised FRED vintages, not real-time releases, so the “real-time” label refers to standardization, not data revisions — a genuine limitation for the backtest. ISM PMI is excluded (not freely redistributable); the Philly Fed survey is a directional proxy, not numerically equivalent. Factor spreads are tradeable-ETF returns, not pure factors; pure momentum/quality/min-vol ETFs post-date 2013 and are omitted from the regime conditioning. Reproducible via <code className="text-text-dim">analysis/macro_regime.py</code>.</p>
-        <p className="pt-1 text-text-faint">This is research, not investment advice.</p>
+        <Disclaimer />
       </div>
     </article>
   );

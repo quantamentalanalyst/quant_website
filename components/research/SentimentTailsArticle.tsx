@@ -25,6 +25,7 @@ import corr from "@/content/research/2026-07-04-sentiment-tails/data/corr.json";
 import overlay from "@/content/research/2026-07-04-sentiment-tails/data/overlay.json";
 import composite from "@/content/research/2026-07-04-sentiment-tails/data/composite.json";
 import summary from "@/content/research/2026-07-04-sentiment-tails/data/summary.json";
+import { Disclaimer } from "./Disclaimer";
 
 const AMBER = "var(--color-accent)";
 const CYAN = "var(--color-data)";
@@ -818,7 +819,7 @@ export default function SentimentTailsArticle({ meta }: { meta: ResearchMeta }) 
         <p><span className="text-text-faint">Inference.</span> Quintile means carry circular block-bootstrap 95% intervals (block 6 — chosen a priori to span the 3-month overlap plus persistence; 3,000 resamples); quantile-regression CIs use the same scheme (1,200 raw / 800 controlled per τ); factor-tercile CIs 2,000. Time-series regressions use Newey-West (Bartlett kernel, lag {summary.hacLag}; lag 12 at the 12-month horizon). The overlap-corrected effective n ≈ n/h is a deliberately crude bound; Hansen-Hodrick errors or non-overlapping subsamples are the formal alternative and would not change any verdict here. The Sharpe comparison carries a block-bootstrap interval on the difference rather than a Ledoit-Wolf test — same idea, fewer assumptions.</p>
         <p><span className="text-text-faint">Out-of-sample.</span> Campbell-Thompson R²oos vs the expanding historical mean, {oos.start} → {oos.end}; training sets contain only observations whose forward window has closed; the tail rule's threshold is computed from the training window alone.</p>
         <p><span className="text-text-faint">Caveats.</span> Quintile/tercile breakpoints and tree splits are in-sample (§08 is the corrective). Proxies are revised-vintage FRED data; “real-time” refers to standardization, and §06's lag conventions bound — but do not eliminate — vintage effects (a full ALFRED vintage study is the right follow-up). Michigan prints with a publication lag ({mich.asOf} here) and its 2024 redesign is handled by dummy, not by splicing vintages. The AAII survey and put/call ratios are omitted — no stable free source with adequate history. ETF spreads begin at their listings (RSP 2003). Single market, single sample; an international replication is the cheap next test. Reproducible via <code className="text-text-dim">analysis/sentiment_tails.py</code> (requires a free FRED API key in <code className="text-text-dim">FRED_API_KEY</code>).</p>
-        <p className="pt-1 text-text-faint">This is research, not investment advice.</p>
+        <Disclaimer />
       </div>
     </article>
   );

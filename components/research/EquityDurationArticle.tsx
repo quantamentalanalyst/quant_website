@@ -14,6 +14,7 @@ import stability from "@/content/research/2026-02-01-equity-duration/data/stabil
 import rollingBetas from "@/content/research/2026-02-01-equity-duration/data/rolling_betas.json";
 import gvDefs from "@/content/research/2026-02-01-equity-duration/data/gv_defs.json";
 import hedge from "@/content/research/2026-02-01-equity-duration/data/hedge.json";
+import { Disclaimer } from "./Disclaimer";
 
 const AMBER = "var(--color-accent)";
 const CYAN = "var(--color-data)";
@@ -410,7 +411,7 @@ export default function EquityDurationArticle({ meta }: { meta: ResearchMeta }) 
         <p><span className="text-text-faint">Variables.</span> Δreal = daily change in DFII10 (10y TIPS); Δnominal = DGS10; Δbreakeven = Δnominal − Δreal. Market = SPY daily return. ΔVIX = change in VIXCLS; oil = CL=F return. Equities: SPY, eleven SPDR sector ETFs, IWF/IWD, SPYG/SPYV, QQQ/RSP.</p>
         <p><span className="text-text-faint">Estimation.</span> OLS with Newey-West HAC standard errors (Bartlett kernel, 5 daily lags). Betas scaled to a +100bp move (Δy in percentage points). The market-controlled beta is the rate coefficient from r = α + β·Δy + β_m·r_mkt + ε. FRED series fetched in 3-year chunks to avoid gateway timeouts.</p>
         <p><span className="text-text-faint">Caveats.</span> Tradeable-proxy (ETF) betas, not pure-factor betas. Contemporaneous co-movement, not identified causality — language is hedged accordingly. R²s confirm rates explain a small share of daily variance; the result is about cross-sectional ranking. Reproducible via <code className="text-text-dim">analysis/equity_duration.py</code>.</p>
-        <p className="pt-1 text-text-faint">This is research, not investment advice.</p>
+        <Disclaimer />
       </div>
     </article>
   );
